@@ -1,0 +1,40 @@
+{
+  "_comment": "Single source of truth for Aspire app branding. Everything else is generated from this file by scripts/apply-branding.sh. Change values here, re-run the script, rebuild.",
+
+  "upstreamRef": "v5.3.0",
+
+  "app": {
+    "name": "Aspire Learning",
+    "description": "Aspire Education and Training — courses, assessments and results on your phone.",
+    "authorName": "Aspire Education and Training",
+    "authorEmail": "chris@aeat.com.au",
+    "authorHref": "https://www.aeat.com.au",
+    "appId": "au.com.aeat.aspirelearning",
+    "customUrlScheme": "aspirelearning",
+    "versionName": "1.0.0",
+    "versionCode": 10000
+  },
+
+  "site": {
+    "_comment": "TODO: replace with the real Moodle site URL before the first build.",
+    "url": "https://moodle.aeat.com.au",
+    "name": "Aspire Education and Training",
+    "lockToThisSiteOnly": true,
+    "privacyPolicy": "https://www.aeat.com.au/privacy-policy"
+  },
+
+  "colors": {
+    "_comment": "Verified with scripts/check-contrast.py. primaryLight needs >=4.5:1 on white; primaryDark needs >=4.5:1 on #282828.",
+    "primaryLight": "#0079A0",
+    "primaryDark": "#009DCF",
+    "accent": "#92CDDC",
+    "navy": "#1F3864",
+    "notificationIcon": "#0079A0"
+  },
+
+  "stores": {
+    "_comment": "TODO: fill in once the listings exist. iOS is the numeric Apple ID prefixed with 'id'.",
+    "android": "au.com.aeat.aspirelearning",
+    "ios": ""
+  }
+}
