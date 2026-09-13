@@ -24,31 +24,63 @@ OUT = ROOT / "branding"
 WHITE = (255, 255, 255, 255)
 
 
-def opaque_rows(im):
-    """Count of opaque pixels in each row."""
+def opaque_profile(im, axis):
+    """Opaque-pixel count along each row (axis='y') or column (axis='x')."""
     w, h = im.size
     px = im.load()
-    return [sum(1 for x in range(w) if px[x, y][3] > 128) for y in range(h)]
+    if axis == "y":
+        return [sum(1 for x in range(w) if px[x, y][3] > 128) for y in range(h)]
+    return [sum(1 for y in range(h) if px[x, y][3] > 128) for x in range(w)]
 
 
-def find_mark_band(im):
-    """The mark is the first run of non-blank rows, before the blank gap."""
-    rows = opaque_rows(im)
-    filled = [y for y, n in enumerate(rows) if n > 0]
+def first_band(profile):
+    """(start, end) of the first run of non-blank slices, or None if it never ends."""
+    filled = [i for i, n in enumerate(profile) if n > 0]
     if not filled:
         sys.exit("source image is fully transparent")
 
     start = filled[0]
-    for y in range(start, len(rows)):
-        if rows[y] == 0:
-            return start, y - 1
-    sys.exit("no blank band found between mark and wordmark — pass --mark-rows")
+    for i in range(start, len(profile)):
+        if profile[i] == 0:
+            return start, i - 1
+    return None
 
 
-def band_bbox(im, y0, y1):
-    w = im.size[0]
+def find_mark(im, layout):
+    """
+    Locate the logo mark, which sits either above the wordmark (a stacked
+    lockup) or to its left (a horizontal one).
+
+    Returns (axis, start, end) where axis is 'y' for a stacked lockup and 'x'
+    for a horizontal one. 'auto' tries a row split first, since a stacked
+    lockup usually has no blank column band, while a horizontal lockup has no
+    blank row band — so whichever split succeeds identifies the layout.
+    """
+    if layout in ("auto", "stacked"):
+        band = first_band(opaque_profile(im, "y"))
+        if band:
+            return ("y", *band)
+        if layout == "stacked":
+            sys.exit("no blank row band found — is this a horizontal lockup? "
+                     "try --layout horizontal, or pass --mark-rows")
+
+    band = first_band(opaque_profile(im, "x"))
+    if band:
+        return ("x", *band)
+
+    sys.exit("could not separate mark from wordmark: no blank row or column "
+             "band found. Pass --mark-rows to set the split by hand.")
+
+
+def band_bbox(im, axis, a0, a1):
+    """Tight bounding box of the opaque pixels inside the given band."""
+    w, h = im.size
     px = im.load()
-    pts = [(x, y) for y in range(y0, y1 + 1) for x in range(w) if px[x, y][3] > 128]
+    if axis == "y":
+        span = [(x, y) for y in range(a0, a1 + 1) for x in range(w)]
+    else:
+        span = [(x, y) for x in range(a0, a1 + 1) for y in range(h)]
+    pts = [(x, y) for x, y in span if px[x, y][3] > 128]
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
     return min(xs), min(ys), max(xs) + 1, max(ys) + 1
 
@@ -68,19 +100,30 @@ def centred(img, size, bg, inset):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("source", type=Path)
-    ap.add_argument("--mark-rows", nargs=2, type=int, metavar=("Y0", "Y1"))
+    ap.add_argument("--mark-rows", nargs=2, type=int, metavar=("Y0", "Y1"),
+                    help="rows the mark occupies, overriding auto-detection "
+                         "(stacked lockups only)")
+    ap.add_argument("--layout", choices=("auto", "stacked", "horizontal"),
+                    default="auto",
+                    help="mark above the wordmark (stacked) or beside it "
+                         "(horizontal); default auto-detects")
     args = ap.parse_args()
 
     im = Image.open(args.source).convert("RGBA")
-    y0, y1 = args.mark_rows if args.mark_rows else find_mark_band(im)
-    print(f"source {args.source} {im.size}; mark rows {y0}-{y1}")
+    if args.mark_rows:
+        axis, a0, a1 = "y", *args.mark_rows
+    else:
+        axis, a0, a1 = find_mark(im, args.layout)
+
+    shape = "stacked, mark rows" if axis == "y" else "horizontal, mark columns"
+    print(f"source {args.source} {im.size}; {shape} {a0}-{a1}")
 
     if im.width < 2048:
         print(f"NOTE: source is only {im.width}px wide. The 1024px icon will be "
               f"upscaled and will look soft. Export a larger PNG from the vector "
               f"original for store-quality artwork.")
 
-    mark = im.crop(band_bbox(im, y0, y1))
+    mark = im.crop(band_bbox(im, axis, a0, a1))
     lockup = im.crop(im.getbbox())
 
     (OUT / "resources" / "android").mkdir(parents=True, exist_ok=True)

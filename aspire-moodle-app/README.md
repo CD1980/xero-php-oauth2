@@ -82,6 +82,18 @@ alpha — but it should be regenerated from the **vector original** (`.ai`, `.ep
 or `.svg`) before store submission. Drop the vector in and re-run
 `scripts/gen-assets.py`.
 
+The script separates the logo mark from the wordmark so the square app icon
+uses the mark alone. It handles both Aspire lockups and picks automatically:
+
+| Lockup | Split | Best used for |
+|---|---|---|
+| Stacked (mark above wordmark) | blank **row** band | login screen — fills a tall, squarish area |
+| Horizontal (mark beside wordmark) | blank **column** band | header bar — a short, wide strip |
+
+Pass `--layout stacked\|horizontal` to force one, or `--mark-rows Y0 Y1` to set
+a stacked split by hand. A stacked lockup scaled into the header's ~40px strip
+renders the wordmark unreadably small, so supply both lockups if you have them.
+
 ### 3. Push notifications need your own Firebase project **and** your own Airnotifier
 
 This is the one that surprises people. Moodle's public push service only serves
