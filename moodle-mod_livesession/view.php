@@ -122,6 +122,8 @@ if (!$canjoin) {
     echo $OUTPUT->notification(get_string('sessionclosed', 'mod_livesession'), 'info');
 } else {
     $ids = [
+        'frameid'   => 'livesession-frame-' . $cm->id,
+        'stageid'   => 'livesession-stage-' . $cm->id,
         'rootid'    => 'livesession-root-' . $cm->id,
         'buttonid'  => 'livesession-join-' . $cm->id,
         'statusid'  => 'livesession-status-' . $cm->id,
@@ -142,6 +144,7 @@ if (!$canjoin) {
 
     $PAGE->requires->js_call_amd('mod_livesession/embed', 'init', [
         $cm->id, $ids['rootid'], $ids['buttonid'], $ids['statusid'], $ids['counterid'],
+        $ids['frameid'], $ids['stageid'],
     ]);
 }
 

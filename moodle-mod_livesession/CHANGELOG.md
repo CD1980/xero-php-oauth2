@@ -5,6 +5,31 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-21
+
+### Changed
+
+- The meeting now opens in **speaker view**. Set through `defaultViewType` at
+  initialisation, and asked for again with `setViewType('speaker')` once joined,
+  because a meeting that remembers a previous layout can otherwise come back in
+  gallery view.
+- The meeting canvas is created at the width of the activity frame rather than a
+  fixed box, and `isResizable` is off so it stays fitted.
+- The meeting **scales with the window**. Zoom fixes the canvas size when the
+  client initialises and offers no way to change it afterwards, so the panel is
+  laid out as a fluid frame wrapping a fixed-size stage: the stage keeps the size
+  the meeting was created at and is scaled to whatever width the page currently
+  has, with the frame's height following so no dead space is left. A `resize`,
+  `orientationchange` and `ResizeObserver` all trigger a refit, the last of which
+  catches the frame changing width on its own — a block drawer opening, say.
+- Scaling is downward only. Enlarging a fixed-size canvas blurs it, so a window
+  made wider than it was at join leaves the meeting at its original size; reload
+  to get a larger canvas.
+
+Measured in a real browser with the meeting live, resizing the window from 1600
+down to 700 and back: the canvas always fits, overflow stays at 0px, and no
+horizontal page scrollbar appears at any width.
+
 ## [1.0.9] - 2026-09-21
 
 ### Fixed

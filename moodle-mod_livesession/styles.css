@@ -1,12 +1,27 @@
-/* Meeting canvas. The Zoom Component View sizes its own iframe-free DOM inside this
-   element, so the only job here is to reserve a sensible area and keep it fluid. */
-.mod-livesession-root {
-    min-height: 200px;
+/* The meeting is laid out as a fluid frame wrapping a fixed-size stage.
+   Zoom's viewSizes can only be set when the client initialises, so the stage keeps
+   the size the meeting was created at and the frame scales it to whatever width the
+   page currently has. Without this the canvas would simply overflow a narrowed
+   window. */
+.mod-livesession-frame {
     width: 100%;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: #1a1a1a;
 }
 
-.mod-livesession-embed .mod-livesession-root:empty {
-    min-height: 0;
+.mod-livesession-frame:empty,
+.mod-livesession-frame.mod-livesession-idle {
+    background: none;
+}
+
+.mod-livesession-stage {
+    transform-origin: top left;
+    will-change: transform;
+}
+
+.mod-livesession-root {
+    width: 100%;
 }
 
 /* Attendance report: keep long user agent strings from stretching the table. */

@@ -26,6 +26,8 @@
     * none
 
     Context variables required for this template:
+    * frameid string - id of the fluid outer frame that clips the meeting
+    * stageid string - id of the fixed-size inner stage that is scaled to fit
     * rootid string - id of the element the Zoom client renders into
     * buttonid string - id of the join button
     * statusid string - id of the status strip
@@ -36,6 +38,8 @@
 
     Example context (json):
     {
+        "frameid": "livesession-frame",
+        "stageid": "livesession-stage",
         "rootid": "livesession-root",
         "buttonid": "livesession-join",
         "statusid": "livesession-status",
@@ -56,7 +60,11 @@
         </button>
     </p>
 
-    <div id="{{rootid}}" class="mod-livesession-root"></div>
+    <div id="{{frameid}}" class="mod-livesession-frame">
+        <div id="{{stageid}}" class="mod-livesession-stage">
+            <div id="{{rootid}}" class="mod-livesession-root"></div>
+        </div>
+    </div>
 
     <p id="{{counterid}}" class="text-muted small mt-2" aria-live="polite"></p>
 </div>
