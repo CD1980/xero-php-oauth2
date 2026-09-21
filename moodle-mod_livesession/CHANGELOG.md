@@ -5,6 +5,23 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-09-21
+
+### Changed
+
+- The SDK loader now tries the confirmed Zoom CDN path first. Zoom's 6.x bundle
+  names itself `zoom-meeting-embedded-{version}.min.js` in its own license
+  header, and Zoom's CDN sample confirms the versioned directory layout, so
+  `https://source.zoom.us/{version}/zoom-meeting-embedded-{version}.min.js` is
+  the correct URL. That bundle has no AMD branch and sets `window.ZoomMtgEmbedded`
+  directly, with React bundled in, so no vendor scripts are needed.
+- When loading fails, the message now distinguishes the causes instead of
+  reporting every URL identically. A Content-Security-Policy refusal is caught
+  from the `securitypolicyviolation` event and named along with the directive
+  that blocked it; any other failure is probed with a HEAD request so the report
+  carries the HTTP status. A script tag's error event exposes neither, which is
+  why a wrong version and a blocked request previously looked the same.
+
 ## [1.0.4] - 2026-09-21
 
 ### Fixed
