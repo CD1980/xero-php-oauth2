@@ -44,13 +44,26 @@ the app and grant these scopes:
 
 Activate the app, then copy the **Account ID**, **Client ID** and **Client Secret**.
 
-### 2. Meeting SDK app
+### 2. General App (supplies the Meeting SDK credentials)
 
 Signs the token that lets a browser into the meeting. Without it the meeting cannot be
 embedded and nothing will render on the page.
 
-At **Develop → Build App → Meeting SDK**, create the app and copy its **Client ID** and
-**Client Secret**. No scopes are required.
+Zoom has retired the standalone **Meeting SDK** app type and folded it into the **General
+App**, so there is no Meeting SDK entry in the Build App list any more. At
+**Develop → Build App → General App**:
+
+1. Fill in the basic information. The Meeting SDK never runs the OAuth flow, but the form
+   still requires a redirect URL — your Moodle site URL is fine.
+2. Open the **Embed** tab and switch **Meeting SDK** on.
+3. Copy the **Client ID** and **Client Secret** from **App Credentials**.
+
+No scopes are required for the Meeting SDK.
+
+> **Use the development credentials.** A General App issues separate development and
+> production credential pairs. While the app is unpublished — which it will be for
+> internal use — only the **development** pair produces a signature Zoom will accept.
+> Switching to the production pair before publishing the app makes every join fail.
 
 ### 3. Enter the credentials in Moodle
 
