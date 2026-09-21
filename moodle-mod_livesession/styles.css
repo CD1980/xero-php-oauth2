@@ -1,0 +1,27 @@
+/* Meeting canvas. The Zoom Component View sizes its own iframe-free DOM inside this
+   element, so the only job here is to reserve a sensible area and keep it fluid. */
+.mod-livesession-root {
+    min-height: 200px;
+    width: 100%;
+}
+
+.mod-livesession-embed .mod-livesession-root:empty {
+    min-height: 0;
+}
+
+/* Attendance report: keep long user agent strings from stretching the table. */
+.mod-livesession-attendance td.useragent {
+    max-width: 18rem;
+    overflow-wrap: anywhere;
+    font-size: 0.85em;
+}
+
+.mod-livesession-attendance td.ipaddress {
+    font-family: var(--font-family-monospace, monospace);
+    white-space: nowrap;
+}
+
+.mod-livesession-feedback {
+    margin: 0;
+    padding-left: 1.1em;
+}
