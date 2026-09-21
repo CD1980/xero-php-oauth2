@@ -5,6 +5,29 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-09-21
+
+### Fixed
+
+- "Could not load the Zoom Meeting SDK", finally diagnosed: the bundle was
+  throwing `ReferenceError: React is not defined` as it evaluated. The CDN build
+  of the Meeting SDK **externalises** React — it expects `React`, `ReactDOM`,
+  `Redux` and `Lodash` to already be global. The npm package's bundle inlines
+  them, which is what made this easy to misread. The plugin now loads the vendor
+  scripts from `https://source.zoom.us/{version}/lib/vendor/`, in the order
+  Zoom's own CDN sample uses, before the SDK bundle, and skips them entirely when
+  React is already on the page.
+
+### Added
+
+- A **Meeting SDK vendor directory** site setting, for the case where Zoom moves
+  those files, mirroring the existing SDK URL override.
+
+Verified in a real browser as a controlled pair: with the vendor scripts absent
+the failure reproduces exactly, naming each missing file and "React is still not
+defined"; with them present the page reaches "You are in the meeting. Your
+attendance is being recorded."
+
 ## [1.0.8] - 2026-09-21
 
 ### Fixed

@@ -84,6 +84,14 @@ if ($ADMIN->fulltree) {
     ));
 
     $settings->add(new admin_setting_configtext(
+        'mod_livesession/sdkvendorurl',
+        get_string('settings:sdkvendorurl', 'mod_livesession'),
+        get_string('settings:sdkvendorurl_desc', 'mod_livesession'),
+        '',
+        PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_configtext(
         'mod_livesession/sdkurl',
         get_string('settings:sdkurl', 'mod_livesession'),
         get_string('settings:sdkurl_desc', 'mod_livesession'),

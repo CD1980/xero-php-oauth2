@@ -153,6 +153,12 @@ it on:
   for scripts and `wss://*.zoom.us` for websockets. The SDK also needs WebAssembly and
   blob workers, so `'wasm-unsafe-eval'`, `worker-src blob:` and `media-src blob:` are
   needed too.
+- **Vendor libraries.** The CDN build of the SDK does not bundle React — it reads
+  `React`, `ReactDOM`, `Redux` and `Lodash` from the page and throws
+  "React is not defined" without them. (The npm package's bundle *does* inline them,
+  which makes this easy to get wrong.) The plugin loads them from
+  `https://source.zoom.us/{version}/lib/vendor/` first, and skips them if React is
+  already present.
 - **RequireJS.** Moodle puts RequireJS on every page, so `define.amd` is defined. A UMD
   build of the SDK detects that and registers as an anonymous AMD module instead of
   setting a global, which RequireJS then discards — the script loads and the SDK simply

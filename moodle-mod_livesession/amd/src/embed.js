@@ -200,6 +200,60 @@ const inspectResponse = async(url) => {
 };
 
 /**
+ * Vendor libraries the CDN build of the SDK expects to find as globals.
+ *
+ * The CDN build externalises React and friends; the npm package's bundle inlines
+ * them. Loading the CDN bundle without these gives "ReferenceError: React is not
+ * defined" the moment it evaluates. The order is the one Zoom uses in its own CDN
+ * sample.
+ *
+ * @type {Array<String>}
+ */
+const VENDOR_FILES = [
+    'react.min.js',
+    'react-dom.min.js',
+    'react-redux.min.js',
+    'redux.min.js',
+    'redux-thunk.min.js',
+    'lodash.min.js',
+];
+
+/**
+ * Put React and friends on the page before the SDK bundle looks for them.
+ *
+ * Skipped entirely when React is already present, so a theme or another plugin that
+ * has its own copy is left alone.
+ *
+ * @param {String} version
+ * @param {String} base override for the vendor directory, may contain {version}
+ * @returns {Promise<Array<String>>} notes about anything that failed to load
+ */
+const loadVendors = async(version, base) => {
+    if (window.React && window.ReactDOM) {
+        return [];
+    }
+
+    const directory = (base || `https://source.zoom.us/{version}/lib/vendor/`)
+        .replace(/\{version\}/g, version);
+    const problems = [];
+
+    for (const file of VENDOR_FILES) {
+        try {
+            await loadScript(directory + file);
+        } catch (error) {
+            problems.push(`${directory}${file} did not load`);
+        }
+    }
+
+    if (!window.React) {
+        problems.push(`React is still not defined after loading the vendor scripts `
+            + `from ${directory}`);
+    }
+
+    return problems;
+};
+
+/**
  * Load the Zoom Meeting SDK bundle, trying each candidate URL in turn.
  *
  * The SDK is not bundled with the plugin: Zoom requires the client and the service to
@@ -210,7 +264,7 @@ const inspectResponse = async(url) => {
  * @param {String} override a full URL from site configuration
  * @returns {Promise<Object>} resolves with the ZoomMtgEmbedded global
  */
-const loadSdk = async(version, override) => {
+const loadSdk = async(version, override, vendorbase) => {
     const already = findSdkGlobal();
     if (already) {
         return already;
@@ -240,6 +294,9 @@ const loadSdk = async(version, override) => {
     const notes = [];
 
     try {
+        // Must happen before any candidate is tried: the CDN bundle reads React from
+        // the global scope as it evaluates, and throws outright if it is absent.
+        notes.push(...await loadVendors(version, vendorbase));
         for (const url of candidates) {
             const before = globalNames();
             try {
@@ -411,7 +468,7 @@ const startMeeting = async(root, statusEl, counterEl, joinButton) => {
         args: {cmid: courseModuleId},
     }])[0];
 
-    const sdk = await loadSdk(config.sdkversion, config.sdkurl);
+    const sdk = await loadSdk(config.sdkversion, config.sdkurl, config.sdkvendorurl);
 
     zoomClient = sdk.createClient();
     const size = viewportFor(root);
