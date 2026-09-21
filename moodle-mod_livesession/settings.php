@@ -79,8 +79,30 @@ if ($ADMIN->fulltree) {
         'mod_livesession/sdkversion',
         get_string('settings:sdkversion', 'mod_livesession'),
         get_string('settings:sdkversion_desc', 'mod_livesession'),
-        '3.13.2',
+        '6.5.0',
         PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'mod_livesession/sdkurl',
+        get_string('settings:sdkurl', 'mod_livesession'),
+        get_string('settings:sdkurl_desc', 'mod_livesession'),
+        '',
+        PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_description(
+        'mod_livesession/testlink',
+        get_string('test:title', 'mod_livesession'),
+        html_writer::link(
+            new moodle_url('/mod/livesession/testconnection.php'),
+            get_string('test:run', 'mod_livesession'),
+            ['class' => 'btn btn-secondary']
+        ) . html_writer::tag(
+            'p',
+            get_string('test:settingsdesc', 'mod_livesession'),
+            ['class' => 'mt-2 text-muted']
+        )
     ));
 
     $settings->add(new admin_setting_heading(

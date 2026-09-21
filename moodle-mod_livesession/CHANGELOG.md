@@ -5,6 +5,47 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-09-21
+
+### Fixed
+
+- "Could not load the Zoom Meeting SDK" when starting a session. The default SDK
+  version was 3.13.2, several generations behind the current release, and the
+  CDN URL was built as
+  `source.zoom.us/{version}/zoom-meeting-embedded-{version}.umd.min.js`, which
+  is not a path Zoom serves. The default version is now 6.5.0.
+
+### Changed
+
+- The loader now tries the known Zoom CDN paths in turn rather than relying on
+  one hard-coded pattern, and the failure message names every URL it tried, so
+  the fix is visible instead of guessable.
+
+### Added
+
+- A **Meeting SDK URL** site setting. Left blank the plugin uses its built-in
+  candidates; set it to pin an exact URL, with `{version}` substituted from the
+  version setting. This means a future Zoom CDN change can be worked around in
+  site administration rather than needing a plugin release.
+
+## [1.0.3] - 2026-09-21
+
+### Added
+
+- **Zoom connection test**, linked from the plugin settings. It reports the
+  plugin version on disk against the version in the database (so a half-applied
+  upgrade is obvious), shows which credentials are set without printing any of
+  them, then contacts Zoom live - bypassing the cached token - and reports what
+  Zoom actually said. It also reads the default host's meeting list, so the
+  granted scopes and the host itself are checked, not just authentication.
+
+### Changed
+
+- The error on an activity page now says plainly that it is what Zoom said the
+  last time that activity was saved, not a live check, and points at the
+  connection test. The old wording read as a current failure, which made a
+  stale message indistinguishable from a real one.
+
 ## [1.0.2] - 2026-09-21
 
 ### Fixed

@@ -29,6 +29,19 @@
  * @return bool
  */
 function xmldb_livesession_upgrade($oldversion) {
-    // No upgrade steps yet; this is the initial release.
+
+    if ($oldversion < 2026092104) {
+        // The Meeting SDK version default moved from 3.13.2 to 6.5.0, because Zoom no
+        // longer serves the 3.x bundle. Changing the default in settings.php does not
+        // touch a value already stored, so a site that never edited this setting would
+        // keep failing with "Could not load the Zoom Meeting SDK" after upgrading.
+        // Only the stale default is replaced; a deliberate choice is left alone.
+        if ((string) get_config('mod_livesession', 'sdkversion') === '3.13.2') {
+            set_config('sdkversion', '6.5.0', 'mod_livesession');
+        }
+
+        upgrade_mod_savepoint(true, 2026092104, 'livesession');
+    }
+
     return true;
 }

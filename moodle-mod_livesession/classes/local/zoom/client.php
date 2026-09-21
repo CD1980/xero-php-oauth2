@@ -276,6 +276,66 @@ class client {
     }
 
     /**
+     * Probe the configured credentials and report what Zoom actually said.
+     *
+     * Deliberately bypasses the token cache so it tests the credentials as they are
+     * right now, and reads a meeting list so that the scopes and the configured host
+     * are exercised too, not just authentication.
+     *
+     * @param string $host the Zoom host to check, or an empty string to skip that step
+     * @return array list of ['step' => string, 'ok' => bool, 'detail' => string]
+     */
+    public function test_connection(string $host = ''): array {
+        $steps = [];
+
+        try {
+            $token = $this->get_access_token(true);
+            $steps[] = [
+                'step' => get_string('test:steptoken', 'mod_livesession'),
+                'ok' => true,
+                'detail' => get_string('test:tokenok', 'mod_livesession', strlen($token)),
+            ];
+        } catch (zoom_exception $e) {
+            $steps[] = [
+                'step' => get_string('test:steptoken', 'mod_livesession'),
+                'ok' => false,
+                'detail' => $e->getMessage(),
+            ];
+            return $steps;
+        }
+
+        if ($host === '') {
+            return $steps;
+        }
+
+        try {
+            $response = $this->request(
+                'GET',
+                '/users/' . rawurlencode($host) . '/meetings',
+                null,
+                ['page_size' => 1]
+            );
+            $steps[] = [
+                'step' => get_string('test:stephost', 'mod_livesession', $host),
+                'ok' => true,
+                'detail' => get_string(
+                    'test:hostok',
+                    'mod_livesession',
+                    (int) ($response['total_records'] ?? 0)
+                ),
+            ];
+        } catch (zoom_exception $e) {
+            $steps[] = [
+                'step' => get_string('test:stephost', 'mod_livesession', $host),
+                'ok' => false,
+                'detail' => $e->getMessage(),
+            ];
+        }
+
+        return $steps;
+    }
+
+    /**
      * Create a scheduled meeting owned by the given Zoom user.
      *
      * @param string $hostid Zoom user id, email address, or the literal 'me'

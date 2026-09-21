@@ -44,34 +44,78 @@ let courseModuleId = 0;
 let leaveSent = false;
 
 /**
- * Load the Zoom Meeting SDK bundle from Zoom's CDN, once per page.
+ * The URLs to try for the Component View bundle, most likely first.
+ *
+ * Zoom has moved this file between paths across SDK generations, and the version in
+ * use is a site setting, so a single hard-coded URL goes stale. An administrator can
+ * bypass the list entirely with the "Meeting SDK URL" setting.
+ *
+ * @param {String} version the SDK version configured by the site administrator
+ * @param {String} override a full URL from site configuration, may contain {version}
+ * @returns {Array<String>}
+ */
+const sdkUrlCandidates = (version, override) => {
+    if (override) {
+        return [override.replace(/\{version\}/g, version)];
+    }
+    return [
+        `https://source.zoom.us/zoom-meeting-embedded-${version}.min.js`,
+        `https://source.zoom.us/${version}/zoom-meeting-embedded-${version}.min.js`,
+        `https://source.zoom.us/${version}/zoomus-websdk-embedded.umd.min.js`,
+        `https://source.zoom.us/${version}/zoom-meeting-embedded-${version}.umd.min.js`,
+    ];
+};
+
+/**
+ * Append one script tag and resolve when it loads.
+ *
+ * @param {String} src
+ * @returns {Promise<void>}
+ */
+const loadScript = (src) => new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+});
+
+/**
+ * Load the Zoom Meeting SDK bundle, trying each candidate URL in turn.
  *
  * The SDK is not bundled with the plugin: Zoom requires the client and the service to
- * stay within a supported version range, so pinning a copy in the repository would go
+ * stay within a supported version range, so a copy pinned in the repository would go
  * stale and start failing to connect.
  *
  * @param {String} version the SDK version configured by the site administrator
+ * @param {String} override a full URL from site configuration
  * @returns {Promise<Object>} resolves with the ZoomMtgEmbedded global
  */
-const loadSdk = (version) => new Promise((resolve, reject) => {
+const loadSdk = async(version, override) => {
     if (window.ZoomMtgEmbedded) {
-        resolve(window.ZoomMtgEmbedded);
-        return;
+        return window.ZoomMtgEmbedded;
     }
 
-    const script = document.createElement('script');
-    script.src = `https://source.zoom.us/${version}/zoom-meeting-embedded-${version}.umd.min.js`;
-    script.async = true;
-    script.onload = () => {
-        if (window.ZoomMtgEmbedded) {
-            resolve(window.ZoomMtgEmbedded);
-        } else {
-            reject(new Error('Zoom Meeting SDK loaded but did not register itself.'));
+    const tried = [];
+    for (const url of sdkUrlCandidates(version, override)) {
+        tried.push(url);
+        try {
+            await loadScript(url);
+        } catch (error) {
+            Log.debug(`mod_livesession: ${url} did not load, trying the next candidate.`);
+            continue;
         }
-    };
-    script.onerror = () => reject(new Error('Could not load the Zoom Meeting SDK.'));
-    document.head.appendChild(script);
-});
+        if (window.ZoomMtgEmbedded) {
+            return window.ZoomMtgEmbedded;
+        }
+        Log.debug(`mod_livesession: ${url} loaded but did not register ZoomMtgEmbedded.`);
+    }
+
+    // Name every URL, because the fix is nearly always to correct the version or URL
+    // in the plugin settings, and that is impossible to guess without seeing them.
+    throw new Error(`Could not load the Zoom Meeting SDK. Tried: ${tried.join(' | ')}`);
+};
 
 /**
  * Show a message in the status strip above the meeting.
@@ -197,7 +241,7 @@ const startMeeting = async(root, statusEl, counterEl, joinButton) => {
         args: {cmid: courseModuleId},
     }])[0];
 
-    const sdk = await loadSdk(config.sdkversion);
+    const sdk = await loadSdk(config.sdkversion, config.sdkurl);
 
     zoomClient = sdk.createClient();
     const size = viewportFor(root);
