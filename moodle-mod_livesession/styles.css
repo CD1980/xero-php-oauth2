@@ -1,0 +1,42 @@
+/* The meeting is laid out as a fluid frame wrapping a fixed-size stage.
+   Zoom's viewSizes can only be set when the client initialises, so the stage keeps
+   the size the meeting was created at and the frame scales it to whatever width the
+   page currently has. Without this the canvas would simply overflow a narrowed
+   window. */
+.mod-livesession-frame {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: #1a1a1a;
+}
+
+.mod-livesession-frame:empty,
+.mod-livesession-frame.mod-livesession-idle {
+    background: none;
+}
+
+.mod-livesession-stage {
+    transform-origin: top left;
+    will-change: transform;
+}
+
+.mod-livesession-root {
+    width: 100%;
+}
+
+/* Attendance report: keep long user agent strings from stretching the table. */
+.mod-livesession-attendance td.useragent {
+    max-width: 18rem;
+    overflow-wrap: anywhere;
+    font-size: 0.85em;
+}
+
+.mod-livesession-attendance td.ipaddress {
+    font-family: var(--font-family-monospace, monospace);
+    white-space: nowrap;
+}
+
+.mod-livesession-feedback {
+    margin: 0;
+    padding-left: 1.1em;
+}

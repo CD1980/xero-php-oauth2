@@ -1,0 +1,11 @@
+# Editor and OS noise
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# moodle-plugin-ci / local tooling
+/vendor/
+/node_modules/
+/moodle/
+.phpunit.result.cache

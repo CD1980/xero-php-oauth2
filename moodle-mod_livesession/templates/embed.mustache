@@ -1,0 +1,70 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_livesession/embed
+
+    The in-page meeting panel.
+
+    Classes required for JS:
+    * none
+
+    Data attributes required for JS:
+    * none
+
+    Context variables required for this template:
+    * frameid string - id of the fluid outer frame that clips the meeting
+    * stageid string - id of the fixed-size inner stage that is scaled to fit
+    * rootid string - id of the element the Zoom client renders into
+    * buttonid string - id of the join button
+    * statusid string - id of the status strip
+    * counterid string - id of the running attendance total
+    * buttonlabel string - label for the join button
+    * notice string - the attendance notice shown before joining
+    * ishost boolean - whether the current user joins as the meeting host
+
+    Example context (json):
+    {
+        "frameid": "livesession-frame",
+        "stageid": "livesession-stage",
+        "rootid": "livesession-root",
+        "buttonid": "livesession-join",
+        "statusid": "livesession-status",
+        "counterid": "livesession-counter",
+        "buttonlabel": "Join the session",
+        "notice": "Your attendance is recorded automatically.",
+        "ishost": false
+    }
+}}
+<div class="mod-livesession-embed">
+    <div class="alert alert-secondary" role="note">{{notice}}</div>
+
+    <div id="{{statusid}}" class="alert alert-info d-none" role="status" aria-live="polite"></div>
+
+    <p>
+        <button type="button" id="{{buttonid}}" class="btn btn-primary btn-lg">
+            {{buttonlabel}}
+        </button>
+    </p>
+
+    <div id="{{frameid}}" class="mod-livesession-frame">
+        <div id="{{stageid}}" class="mod-livesession-stage">
+            <div id="{{rootid}}" class="mod-livesession-root"></div>
+        </div>
+    </div>
+
+    <p id="{{counterid}}" class="text-muted small mt-2" aria-live="polite"></p>
+</div>
