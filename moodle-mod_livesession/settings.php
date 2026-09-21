@@ -134,6 +134,13 @@ if ($ADMIN->fulltree) {
         HOURSECS
     ));
 
+    $settings->add(new admin_setting_configcheckbox(
+        'mod_livesession/aicompanion',
+        get_string('settings:aicompanion', 'mod_livesession'),
+        get_string('settings:aicompanion_desc', 'mod_livesession'),
+        0
+    ));
+
     $settings->add(new admin_setting_configduration(
         'mod_livesession/heartbeatinterval',
         get_string('settings:heartbeatinterval', 'mod_livesession'),

@@ -5,6 +5,28 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-09-21
+
+### Changed
+
+- Zoom's AI Companion is now switched off on the meetings the plugin creates,
+  which removes the "Meeting Summary has been enabled" notice participants were
+  shown on joining. `auto_start_meeting_summary` and
+  `auto_start_ai_companion_questions` are both sent as false. Beyond the notice,
+  this means no AI transcript or summary of a class is generated and
+  distributed — a decision for the institution rather than a default, given the
+  plugin is already recording attendance evidence about students.
+
+### Added
+
+- An **Enable Zoom AI Companion** site setting for turning it back on
+  deliberately. Off by default.
+
+Note that a meeting already created keeps its old settings until the activity is
+saved again, and that an account- or group-level lock on AI Companion in the Zoom
+web portal overrides the API, in which case the notice persists until it is
+turned off there.
+
 ## [1.1.0] - 2026-09-21
 
 ### Changed

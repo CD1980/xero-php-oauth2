@@ -102,6 +102,12 @@ class meeting_manager {
             ? $livesession->autorecord
             : 'none';
 
+        // Off unless a site administrator turns it on. Leaving it on makes Zoom greet
+        // every participant with a "Meeting Summary has been enabled" notice, and it
+        // means an AI transcript and summary of a class is generated and distributed,
+        // which is a decision for the institution rather than a default.
+        $aicompanion = (bool) get_config('mod_livesession', 'aicompanion');
+
         return [
             'topic'      => $topic,
             'type'       => self::TYPE_SCHEDULED,
@@ -120,6 +126,8 @@ class meeting_manager {
                 'auto_recording'         => $autorecord,
                 'meeting_authentication' => false,
                 'show_share_button'      => true,
+                'auto_start_meeting_summary'      => $aicompanion,
+                'auto_start_ai_companion_questions' => $aicompanion,
             ],
         ];
     }
