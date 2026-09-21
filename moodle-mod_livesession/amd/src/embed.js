@@ -117,6 +117,11 @@ const loadScript = (src) => {
         const script = document.createElement('script');
         script.src = src;
         script.async = true;
+        // Without this a cross-origin script's exceptions are reduced to a bare
+        // "Script error." with no filename, message or line, which hides the one
+        // piece of information worth having. Zoom's CDN sends CORS headers, so
+        // asking for them costs nothing.
+        script.crossOrigin = 'anonymous';
         script.onload = () => resolve();
         script.onerror = () => reject(new Error(`Failed to load ${src}`));
         document.head.appendChild(script);
@@ -215,10 +220,8 @@ const loadSdk = async(version, override) => {
     // tag just fires a bare error event.
     const blocked = [];
     const cspListener = (event) => {
-        if (event.blockedURI && event.blockedURI.indexOf('zoom.us') !== -1) {
-            blocked.push(`${event.blockedURI} was blocked by the Content-Security-Policy `
-                + `directive "${event.violatedDirective}"`);
-        }
+        blocked.push(`"${event.blockedURI || 'inline'}" was blocked by the `
+            + `Content-Security-Policy directive "${event.violatedDirective}"`);
     };
     document.addEventListener('securitypolicyviolation', cspListener);
 
@@ -226,9 +229,10 @@ const loadSdk = async(version, override) => {
     // an uncaught error against the script's filename.
     const thrown = [];
     const errorListener = (event) => {
-        if (event.filename && event.filename.indexOf('zoom.us') !== -1) {
-            thrown.push(`${event.filename} threw at line ${event.lineno}: ${event.message}`);
-        }
+        const where = event.filename
+            ? `${event.filename}:${event.lineno}`
+            : 'an unnamed script';
+        thrown.push(`${where} threw: ${event.message || 'no message available'}`);
     };
     window.addEventListener('error', errorListener, true);
 
@@ -266,7 +270,9 @@ const loadSdk = async(version, override) => {
 
     if (blocked.length) {
         throw new Error(`Could not load the Zoom Meeting SDK. ${blocked.join('; ')}. `
-            + `Allow https://source.zoom.us in the site's Content-Security-Policy.`);
+            + `The Zoom SDK needs script-src https://source.zoom.us, `
+            + `'wasm-unsafe-eval', worker-src blob: and connect-src https://*.zoom.us `
+            + `wss://*.zoom.us in the site's Content-Security-Policy.`);
     }
 
     // Zoom's Meeting SDK requires a secure context; on plain HTTP it cannot start.

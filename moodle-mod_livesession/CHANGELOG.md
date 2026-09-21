@@ -5,6 +5,33 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-09-21
+
+### Fixed
+
+- Two filters in the SDK failure reporting hid the only useful information.
+  The error listener kept an event only when its `filename` mentioned
+  `zoom.us`, but a cross-origin script's exceptions are reduced to a bare
+  "Script error." with no filename, so every one was discarded. The CSP
+  listener kept a violation only when its `blockedURI` mentioned `zoom.us`,
+  but an `eval` or WebAssembly refusal reports `blockedURI` as "eval" or
+  "wasm-eval", so exactly the violation that stops the bundle running was
+  discarded. Both now keep everything raised while the script is loading.
+- The script tag now sets `crossorigin="anonymous"`, without which the browser
+  refuses to give a cross-origin script's real error message, file or line.
+  Zoom's CDN sends CORS headers, so this costs nothing.
+
+### Changed
+
+- The Content-Security-Policy advice now names what the SDK actually needs -
+  `script-src https://source.zoom.us`, `'wasm-unsafe-eval'`, `worker-src blob:`
+  and `connect-src https://*.zoom.us wss://*.zoom.us` - rather than mentioning
+  only the script host.
+
+Verified in a real browser: a bundle that throws now reports the exception with
+its file and line, a CSP `eval` refusal reports the blocked URI and the
+directive, and a correct bundle still joins.
+
 ## [1.0.7] - 2026-09-21
 
 ### Changed
