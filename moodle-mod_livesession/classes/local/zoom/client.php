@@ -94,6 +94,21 @@ class client {
     }
 
     /**
+     * Build a curl instance, making sure the class is actually loaded first.
+     *
+     * The curl class lives in lib/filelib.php and is not autoloadable. A web request
+     * usually pulls filelib in along the way, but a cron run does not, so the
+     * scheduled tasks would otherwise die on "Class curl not found".
+     *
+     * @return \curl
+     */
+    protected static function make_curl(): \curl {
+        global $CFG;
+        require_once($CFG->libdir . '/filelib.php');
+        return new \curl();
+    }
+
+    /**
      * Fetch a bearer token, reusing the cached one while it is still valid.
      *
      * The cache key includes the client id so that rotating the credentials in site
@@ -114,29 +129,43 @@ class client {
             }
         }
 
-        $curl = new curl();
+        $curl = static::make_curl();
         $curl->setHeader([
             'Authorization: Basic ' . base64_encode($this->clientid . ':' . $this->clientsecret),
             'Content-Type: application/x-www-form-urlencoded',
         ]);
-        $response = $curl->post(self::TOKEN_URL, [
-            'grant_type' => 'account_credentials',
-            'account_id' => $this->accountid,
-        ], [
+        // The body must be a pre-encoded string. Handing curl::post() an array makes
+        // libcurl build a multipart/form-data body and append its boundary to the
+        // Content-Type header above, and Zoom answers "Bad Request" to that.
+        $response = $curl->post(static::TOKEN_URL, self::build_token_body($this->accountid), [
             'CURLOPT_TIMEOUT' => self::TIMEOUT,
             'CURLOPT_CONNECTTIMEOUT' => 10,
         ]);
 
         $info = $curl->get_info();
         $status = (int) ($info['http_code'] ?? 0);
-        if ($curl->get_errno()) {
-            throw new zoom_exception(get_string('error:tokenunreachable', 'mod_livesession', $curl->error), 0);
+        if ($curl->get_errno() || (!$status && !empty($curl->error))) {
+            throw new zoom_exception(
+                get_string('error:tokenunreachable', 'mod_livesession', s((string) $curl->error)),
+                0
+            );
         }
 
         $decoded = json_decode($response, true);
         if ($status !== 200 || !is_array($decoded) || empty($decoded['access_token'])) {
-            $reason = is_array($decoded) ? ($decoded['reason'] ?? $decoded['error'] ?? '') : '';
-            throw new zoom_exception(get_string('error:tokenrejected', 'mod_livesession', s($reason)), $status);
+            $parts = [];
+            if (is_array($decoded)) {
+                foreach (['reason', 'error', 'errorMessage', 'message'] as $key) {
+                    if (!empty($decoded[$key]) && is_string($decoded[$key])) {
+                        $parts[] = $decoded[$key];
+                    }
+                }
+            }
+            $parts[] = 'HTTP ' . $status;
+            throw new zoom_exception(
+                get_string('error:tokenrejected', 'mod_livesession', s(implode(' / ', array_unique($parts)))),
+                $status
+            );
         }
 
         $expiresin = (int) ($decoded['expires_in'] ?? 3600);
@@ -146,6 +175,19 @@ class client {
         ]);
 
         return $decoded['access_token'];
+    }
+
+    /**
+     * Build the form body for the account_credentials token request.
+     *
+     * @param string $accountid
+     * @return string urlencoded body
+     */
+    public static function build_token_body(string $accountid): string {
+        return http_build_query([
+            'grant_type' => 'account_credentials',
+            'account_id' => $accountid,
+        ], '', '&');
     }
 
     /**
@@ -168,12 +210,12 @@ class client {
     ): array {
 
         $method = strtoupper($method);
-        $url = self::API_BASE . $path;
+        $url = static::API_BASE . $path;
         if ($query) {
             $url .= '?' . http_build_query($query, '', '&');
         }
 
-        $curl = new curl();
+        $curl = static::make_curl();
         $curl->setHeader([
             'Authorization: Bearer ' . $this->get_access_token($retried),
             'Content-Type: application/json',
@@ -198,12 +240,15 @@ class client {
                 break;
         }
 
-        if ($curl->get_errno()) {
-            throw new zoom_exception(get_string('error:apiunreachable', 'mod_livesession', $curl->error), 0);
-        }
-
         $info = $curl->get_info();
         $status = (int) ($info['http_code'] ?? 0);
+
+        if ($curl->get_errno() || (!$status && !empty($curl->error))) {
+            throw new zoom_exception(
+                get_string('error:apiunreachable', 'mod_livesession', s((string) $curl->error)),
+                0
+            );
+        }
 
         // A cached token can still be revoked server side; take exactly one more run at it.
         if ($status === 401 && !$retried) {

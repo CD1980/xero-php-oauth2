@@ -5,6 +5,27 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-09-21
+
+### Fixed
+
+- Every Zoom call failed at the first step with "Zoom rejected the plugin's
+  credentials: Bad Request". The token request passed its parameters to
+  Moodle's `curl::post()` as an array, and Moodle hands an array straight to
+  `CURLOPT_POSTFIELDS`, so libcurl built a `multipart/form-data` body and
+  appended its boundary to the `application/x-www-form-urlencoded` header the
+  plugin had set. Zoom could not parse the result. The body is now a
+  pre-encoded string, and `client::build_token_body()` is covered by a test.
+- The scheduled reconciliation task would have died on "Class curl not found".
+  That class lives in `lib/filelib.php`, which is not autoloadable and which
+  `setup.php` only loads when `$CFG->proxyfixunsafe` is set. A web request
+  pulls it in incidentally; cron does not. All curl instances now go through
+  `make_curl()`, which requires filelib first.
+- A blocked or unreachable host was reported as rejected credentials, because
+  Moodle's curl sets `->error` without setting an errno in that case. Transport
+  failures now say so, and token errors include the HTTP status and Zoom's own
+  error code.
+
 ## [1.0.1] - 2026-09-21
 
 ### Fixed
