@@ -139,9 +139,58 @@ const loadScript = (src) => {
 const probeUrl = async(url) => {
     try {
         const response = await fetch(url, {method: 'HEAD', mode: 'cors', cache: 'no-store'});
-        return `HTTP ${response.status}`;
+        const type = (response.headers.get('content-type') || 'none').split(';')[0];
+        if (response.status === 200 && !/javascript|ecmascript/i.test(type)) {
+            return `HTTP 200 but content-type is "${type}", so the browser refused to `
+                + `execute it - the response is not JavaScript`;
+        }
+        return `HTTP ${response.status} (content-type ${type})`;
     } catch (error) {
         return `not reachable from this browser (${(error && error.message) || 'blocked'})`;
+    }
+};
+
+/**
+ * Names currently defined on window, for comparing before and after a script runs.
+ *
+ * @returns {Set<String>}
+ */
+const globalNames = () => {
+    try {
+        return new Set(Object.keys(window));
+    } catch (error) {
+        return new Set();
+    }
+};
+
+/**
+ * Look at what a URL actually returned, when a script loaded but published nothing.
+ *
+ * A proxy or web filter that answers with an HTML block page and a 200 status is
+ * indistinguishable from success to a script tag: it loads, the browser fails to
+ * parse it as JavaScript, and no global appears. So is a bundle that throws while
+ * evaluating. Reading the body tells the two apart.
+ *
+ * @param {String} url
+ * @returns {Promise<String>}
+ */
+const inspectResponse = async(url) => {
+    try {
+        const response = await fetch(url, {mode: 'cors', cache: 'no-store'});
+        const type = (response.headers.get('content-type') || 'none').split(';')[0];
+        const body = await response.text();
+        const head = body.slice(0, 60).replace(/\s+/g, ' ');
+
+        if (/^\s*<(!doctype|html)/i.test(body)) {
+            return `HTTP ${response.status}, but the body is HTML, not JavaScript `
+                + `(content-type ${type}, starts "${head}") - something is intercepting `
+                + `the request and returning a page of its own`;
+        }
+        return `HTTP ${response.status}, content-type ${type}, ${body.length} bytes, `
+            + `starts "${head}"`;
+    } catch (error) {
+        return `the script tag loaded it, but fetch could not re-read it `
+            + `(${(error && error.message) || 'blocked'})`;
     }
 };
 
@@ -173,27 +222,46 @@ const loadSdk = async(version, override) => {
     };
     document.addEventListener('securitypolicyviolation', cspListener);
 
+    // A bundle that throws while evaluating still fires onload, so the only trace is
+    // an uncaught error against the script's filename.
+    const thrown = [];
+    const errorListener = (event) => {
+        if (event.filename && event.filename.indexOf('zoom.us') !== -1) {
+            thrown.push(`${event.filename} threw at line ${event.lineno}: ${event.message}`);
+        }
+    };
+    window.addEventListener('error', errorListener, true);
+
     const candidates = sdkUrlCandidates(version, override);
     const notes = [];
 
     try {
         for (const url of candidates) {
+            const before = globalNames();
             try {
                 await loadScript(url);
             } catch (error) {
                 notes.push(`${url} - ${await probeUrl(url)}`);
                 continue;
             }
+
             const sdk = findSdkGlobal();
             if (sdk) {
                 return sdk;
             }
-            notes.push(`${url} - loaded, but published none of `
-                + `${SDK_GLOBALS.join('/')} (globals seen: `
-                + `${SDK_GLOBALS.filter((n) => window[n] !== undefined).join(', ') || 'none'})`);
+
+            // Whatever it published is the clue: an unexpected name means we are
+            // looking for the wrong one, and nothing at all means it never really ran.
+            const added = [...globalNames()].filter((name) => !before.has(name));
+            const published = added.length
+                ? `it published: ${added.slice(0, 12).join(', ')}`
+                : `it published no new globals at all, so it did not run to completion`;
+            notes.push(`${url} - loaded but no usable SDK; ${published}; `
+                + `${await inspectResponse(url)}`);
         }
     } finally {
         document.removeEventListener('securitypolicyviolation', cspListener);
+        window.removeEventListener('error', errorListener, true);
     }
 
     if (blocked.length) {
@@ -201,7 +269,16 @@ const loadSdk = async(version, override) => {
             + `Allow https://source.zoom.us in the site's Content-Security-Policy.`);
     }
 
-    throw new Error(`Could not load the Zoom Meeting SDK. ${notes.join(' | ')}`);
+    // Zoom's Meeting SDK requires a secure context; on plain HTTP it cannot start.
+    const context = window.isSecureContext
+        ? ''
+        : ` This page is not a secure context (${window.location.protocol}//), and the `
+            + `Zoom Meeting SDK requires HTTPS.`;
+
+    const threw = thrown.length ? ` Errors while evaluating: ${thrown.join('; ')}.` : '';
+
+    throw new Error(`Could not load the Zoom Meeting SDK. `
+        + `${notes.join(' | ')}.${threw}${context}`);
 };
 
 /**

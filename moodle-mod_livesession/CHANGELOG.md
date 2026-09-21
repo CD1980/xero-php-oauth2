@@ -5,6 +5,24 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-09-21
+
+### Changed
+
+- When the SDK script loads but no usable SDK appears, the failure now reports
+  what actually happened rather than restating that it failed. It lists the
+  globals the bundle published, if any; re-reads the response and gives the HTTP
+  status, content-type, byte count and opening characters; names any exception
+  thrown while the bundle evaluated, which a script tag's `onload` otherwise
+  hides; and says so if the page is not a secure context, since the Meeting SDK
+  requires HTTPS.
+- A 200 response whose content-type is not JavaScript is now called out as such.
+  The browser refuses to execute those, which previously looked identical to a
+  404.
+
+All three paths were exercised against a real browser: a bundle publishing an
+unexpected global, one publishing nothing, and a correct one, which still joins.
+
 ## [1.0.6] - 2026-09-21
 
 ### Fixed
