@@ -150,7 +150,14 @@ it on:
   Video quality and the maximum number of visible participants are lower than in a fully
   isolated page.
 - **Content Security Policy.** If your site sets a CSP, it must allow `https://source.zoom.us`
-  for scripts and `wss://*.zoom.us` for websockets.
+  for scripts and `wss://*.zoom.us` for websockets. The SDK also needs WebAssembly and
+  blob workers, so `'wasm-unsafe-eval'`, `worker-src blob:` and `media-src blob:` are
+  needed too.
+- **RequireJS.** Moodle puts RequireJS on every page, so `define.amd` is defined. A UMD
+  build of the SDK detects that and registers as an anonymous AMD module instead of
+  setting a global, which RequireJS then discards — the script loads and the SDK simply
+  never appears. The loader hides `define.amd` for the duration of the script load and
+  restores it immediately afterwards. `tests/manual/browser-smoke.js` guards this.
 - **Reconciliation matching.** Zoom's participant report is matched to Moodle users by
   email. A student whose Zoom account uses a different address is not matched, and only
   their browser-reported time counts.

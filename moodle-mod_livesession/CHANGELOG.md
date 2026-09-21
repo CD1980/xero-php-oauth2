@@ -5,6 +5,27 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-09-21
+
+### Fixed
+
+- "Could not load the Zoom Meeting SDK ... loaded, but did not register the SDK".
+  Moodle puts RequireJS on every page, so `define.amd` is defined. A UMD build
+  detects that and registers itself as an anonymous AMD module rather than
+  assigning a browser global, and RequireJS discards it because nothing asked
+  for it - the script downloads and executes perfectly and the SDK global never
+  appears. The loader now hides `define.amd` for the duration of the script load
+  and restores it immediately afterwards, which forces the bundle down its
+  browser-global branch. It also accepts either global the SDK may publish
+  (`ZoomMtgEmbedded` or `ReactWidgets`) and, when neither appears, reports which
+  it looked for.
+
+### Added
+
+- `tests/manual/browser-smoke.js`, a Playwright script that drives a real browser
+  against a live Moodle and asserts the SDK registers. PHPUnit cannot see this
+  class of failure; it only exists on a real page with RequireJS present.
+
 ## [1.0.5] - 2026-09-21
 
 ### Changed
