@@ -32,7 +32,6 @@ require_once($CFG->libdir . '/formslib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class override_form extends moodleform {
-
     /**
      * Build the form.
      *
@@ -47,8 +46,12 @@ class override_form extends moodleform {
         $mform->addElement('hidden', 'userid');
         $mform->setType('userid', PARAM_INT);
 
-        $mform->addElement('static', 'participant', get_string('fullname'),
-            $this->_customdata['fullname']);
+        $mform->addElement(
+            'static',
+            'participant',
+            get_string('fullname'),
+            $this->_customdata['fullname']
+        );
 
         $mform->addElement('select', 'status', get_string('status', 'mod_livesession'), [
             attendance::STATUS_PRESENT => get_string('status:present', 'mod_livesession'),
@@ -58,17 +61,28 @@ class override_form extends moodleform {
             attendance::STATUS_EXCUSED => get_string('status:excused', 'mod_livesession'),
         ]);
 
-        $mform->addElement('text', 'durationminutes',
-            get_string('attendedminutes', 'mod_livesession'), ['size' => 5]);
+        $mform->addElement(
+            'text',
+            'durationminutes',
+            get_string('attendedminutes', 'mod_livesession'),
+            ['size' => 5]
+        );
         $mform->setType('durationminutes', PARAM_INT);
         $mform->addHelpButton('durationminutes', 'attendedminutes', 'mod_livesession');
 
-        $mform->addElement('textarea', 'remarks', get_string('remarks', 'mod_livesession'),
-            ['rows' => 3, 'cols' => 60]);
+        $mform->addElement(
+            'textarea',
+            'remarks',
+            get_string('remarks', 'mod_livesession'),
+            ['rows' => 3, 'cols' => 60]
+        );
         $mform->setType('remarks', PARAM_TEXT);
 
-        $mform->addElement('advcheckbox', 'clearoverride',
-            get_string('clearoverride', 'mod_livesession'));
+        $mform->addElement(
+            'advcheckbox',
+            'clearoverride',
+            get_string('clearoverride', 'mod_livesession')
+        );
         $mform->addHelpButton('clearoverride', 'clearoverride', 'mod_livesession');
 
         $this->add_action_buttons();

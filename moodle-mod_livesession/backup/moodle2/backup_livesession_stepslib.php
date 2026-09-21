@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Defines the complete livesession structure for backup.
  *
@@ -32,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class backup_livesession_activity_structure_step extends backup_activity_structure_step {
-
     /**
      * Build the backup structure.
      *
@@ -72,10 +69,14 @@ class backup_livesession_activity_structure_step extends backup_activity_structu
         $livesession->set_source_table('livesession', ['id' => backup::VAR_ACTIVITYID]);
 
         if ($userinfo) {
-            $attendance->set_source_table('livesession_attendance',
-                ['livesessionid' => backup::VAR_PARENTID]);
-            $log->set_source_table('livesession_log',
-                ['livesessionid' => backup::VAR_PARENTID]);
+            $attendance->set_source_table(
+                'livesession_attendance',
+                ['livesessionid' => backup::VAR_PARENTID]
+            );
+            $log->set_source_table(
+                'livesession_log',
+                ['livesessionid' => backup::VAR_PARENTID]
+            );
         }
 
         $attendance->annotate_ids('user', 'userid');

@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 use mod_livesession\local\attendance;
 use mod_livesession\local\meeting_manager;
 
@@ -158,8 +156,16 @@ function livesession_grade_item_update($livesession, $grades = null) {
         $grades = null;
     }
 
-    return grade_update('mod/livesession', $livesession->course, 'mod', 'livesession',
-        $livesession->id, 0, $grades, $params);
+    return grade_update(
+        'mod/livesession',
+        $livesession->course,
+        'mod',
+        'livesession',
+        $livesession->id,
+        0,
+        $grades,
+        $params
+    );
 }
 
 /**
@@ -172,8 +178,16 @@ function livesession_grade_item_delete($livesession) {
     global $CFG;
     require_once($CFG->libdir . '/gradelib.php');
 
-    return grade_update('mod/livesession', $livesession->course, 'mod', 'livesession',
-        $livesession->id, 0, null, ['deleted' => 1]);
+    return grade_update(
+        'mod/livesession',
+        $livesession->course,
+        'mod',
+        'livesession',
+        $livesession->id,
+        0,
+        null,
+        ['deleted' => 1]
+    );
 }
 
 /**
@@ -245,10 +259,13 @@ function livesession_update_calendar_event($livesession) {
         'eventtype'  => 'open',
     ]);
 
+    // The raw intro is used rather than format_module_intro(). This function runs during
+    // livesession_add_instance(), at which point the course module row exists but its
+    // instance column is still zero, so there is no module context to format against yet.
     $data = (object) [
         'name'         => $livesession->name,
-        'description'  => format_module_intro('livesession', $livesession, 0, false),
-        'format'       => FORMAT_HTML,
+        'description'  => $livesession->intro ?? '',
+        'format'       => (int) ($livesession->introformat ?? FORMAT_HTML),
         'courseid'     => $livesession->course,
         'groupid'      => 0,
         'userid'       => 0,
@@ -262,12 +279,64 @@ function livesession_update_calendar_event($livesession) {
         'visible'      => 1,
     ];
 
-    if ($event) {
-        $calendarevent = calendar_event::load($event->id);
-        $calendarevent->update($data, false);
-    } else {
-        calendar_event::create($data, false);
+    // A calendar problem must never abort the activity being saved. Moodle writes the
+    // course module row before calling our add_instance and fills in its instance column
+    // from our return value, so throwing here leaves a course module pointing at nothing
+    // and every later click on it fails with "Invalid course module ID".
+    try {
+        if ($event) {
+            $calendarevent = calendar_event::load($event->id);
+            $calendarevent->update($data, false);
+        } else {
+            calendar_event::create($data, false);
+        }
+    } catch (Throwable $e) {
+        debugging('mod_livesession: could not update the calendar event for session '
+            . $livesession->id . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
     }
+}
+
+/**
+ * Provide the "Join" action shown against this activity in the timeline block.
+ *
+ * Required because the calendar event above is a CALENDAR_EVENT_TYPE_ACTION event.
+ *
+ * @param calendar_event $event
+ * @param \core_calendar\action_factory $factory
+ * @param int $userid
+ * @return \core_calendar\local\event\entities\action_interface|null
+ */
+function mod_livesession_core_calendar_provide_event_action(
+    calendar_event $event,
+    \core_calendar\action_factory $factory,
+    int $userid = 0
+) {
+    global $USER, $DB;
+
+    $userid = $userid ?: $USER->id;
+
+    $cm = get_fast_modinfo($event->courseid, $userid)->instances['livesession'][$event->instance] ?? null;
+    if (!$cm || !$cm->uservisible) {
+        return null;
+    }
+
+    $livesession = $DB->get_record('livesession', ['id' => $event->instance]);
+    if (!$livesession) {
+        return null;
+    }
+
+    // Once the join window has closed there is nothing left to act on.
+    [, $windowclose] = \mod_livesession\local\meeting_manager::join_window($livesession);
+    if (time() > $windowclose) {
+        return null;
+    }
+
+    return $factory->create_instance(
+        get_string('joinsession', 'mod_livesession'),
+        new moodle_url('/mod/livesession/view.php', ['id' => $cm->id]),
+        1,
+        \mod_livesession\local\meeting_manager::is_joinable($livesession)
+    );
 }
 
 /**
@@ -287,7 +356,7 @@ function livesession_user_outline($course, $user, $mod, $livesession) {
 
     return (object) [
         'info' => get_string('status:' . $record->status, 'mod_livesession')
-            . ' (' . format_time((int) $record->duration) . ')',
+            . ' (' . attendance::format_attended((int) $record->duration) . ')',
         'time' => (int) $record->timemodified,
     ];
 }
@@ -389,8 +458,11 @@ function mod_livesession_core_calendar_get_valid_event_timestart_range(\calendar
  */
 function livesession_reset_course_form_definition($mform) {
     $mform->addElement('header', 'livesessionheader', get_string('modulenameplural', 'mod_livesession'));
-    $mform->addElement('advcheckbox', 'reset_livesession_attendance',
-        get_string('resetattendance', 'mod_livesession'));
+    $mform->addElement(
+        'advcheckbox',
+        'reset_livesession_attendance',
+        get_string('resetattendance', 'mod_livesession')
+    );
 }
 
 /**

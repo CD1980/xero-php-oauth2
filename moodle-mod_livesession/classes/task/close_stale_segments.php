@@ -31,7 +31,6 @@ use mod_livesession\local\attendance;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class close_stale_segments extends scheduled_task {
-
     /**
      * Task name for the admin UI.
      *

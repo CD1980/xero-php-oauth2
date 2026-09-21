@@ -35,7 +35,6 @@ use mod_livesession\local\zoom\zoom_exception;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class reconcile_attendance extends scheduled_task {
-
     /** @var int Only look at sessions that finished within this window. */
     const LOOKBACK = 2 * DAYSECS;
 

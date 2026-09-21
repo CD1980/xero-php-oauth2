@@ -14,19 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace mod_livesession\event;
+
 /**
- * Version metadata for mod_livesession.
+ * Fired when the list of live sessions in a course is viewed.
+ *
+ * The core class is abstract, so each module has to supply its own subclass.
  *
  * @package    mod_livesession
  * @copyright  2026 Aspire Education and Training
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-$plugin->component = 'mod_livesession';
-$plugin->version   = 2026092101;
-$plugin->requires  = 2023100900; // Moodle 4.3.
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v1.0.1';
-$plugin->cron      = 0;
+class course_module_instance_list_viewed extends \core\event\course_module_instance_list_viewed {
+}

@@ -39,7 +39,7 @@ $PAGE->set_title(format_string($course->fullname));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
-$event = \core\event\course_module_instance_list_viewed::create(['context' => $context]);
+$event = \mod_livesession\event\course_module_instance_list_viewed::create(['context' => $context]);
 $event->add_record_snapshot('course', $course);
 $event->trigger();
 
@@ -75,7 +75,7 @@ foreach ($instances as $instance) {
     $record = attendance::get_record((int) $instance->id, (int) $USER->id);
     $mine = $record
         ? get_string('status:' . $record->status, 'mod_livesession')
-            . ' (' . format_time((int) $record->duration) . ')'
+            . ' (' . attendance::format_attended((int) $record->duration) . ')'
         : get_string('status:absent', 'mod_livesession');
 
     $table->data[] = [

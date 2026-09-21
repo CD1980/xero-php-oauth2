@@ -121,6 +121,7 @@ $string['status:partial'] = 'Partial';
 $string['status:absent'] = 'Absent';
 $string['status:excused'] = 'Excused';
 $string['attendedfor'] = 'Time attended';
+$string['attendednone'] = 'None';
 $string['attendedminutes'] = 'Time attended (minutes)';
 $string['attendedminutes_help'] = 'Replaces the automatically captured figure. The grade is recalculated from this value.';
 $string['firstjoin'] = 'First joined';

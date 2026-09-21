@@ -27,7 +27,6 @@ use moodle_exception;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 trait session_trait {
-
     /**
      * Resolve a course module id into everything the endpoints need, with access checked.
      *

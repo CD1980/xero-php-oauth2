@@ -31,7 +31,6 @@ use curl;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class client {
-
     /** @var string Base URL of the Zoom REST API. */
     const API_BASE = 'https://api.zoom.us/v2';
 
@@ -51,6 +50,8 @@ class client {
     protected $clientsecret;
 
     /**
+     * Construct a client for one set of server-to-server OAuth credentials.
+     *
      * @param string $accountid
      * @param string $clientid
      * @param string $clientsecret
@@ -158,8 +159,13 @@ class client {
      * @return array decoded response body; an empty array for 204 responses
      * @throws zoom_exception
      */
-    public function request(string $method, string $path, ?array $payload = null,
-            array $query = [], bool $retried = false): array {
+    public function request(
+        string $method,
+        string $path,
+        ?array $payload = null,
+        array $query = [],
+        bool $retried = false
+    ): array {
 
         $method = strtoupper($method);
         $url = self::API_BASE . $path;

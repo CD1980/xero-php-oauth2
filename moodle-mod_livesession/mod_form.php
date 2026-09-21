@@ -36,7 +36,6 @@ require_once($CFG->dirroot . '/course/moodleform_mod.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class mod_livesession_mod_form extends moodleform_mod {
-
     /**
      * Build the form.
      *
@@ -54,8 +53,7 @@ class mod_livesession_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements(get_string('sessiondescription', 'mod_livesession'));
 
-        // --- Schedule -------------------------------------------------------
-
+        // Schedule.
         $mform->addElement('header', 'scheduleheader', get_string('schedule', 'mod_livesession'));
         $mform->setExpanded('scheduleheader');
 
@@ -63,23 +61,34 @@ class mod_livesession_mod_form extends moodleform_mod {
         $mform->setDefault('starttime', time() + HOURSECS);
         $mform->addHelpButton('starttime', 'starttime', 'mod_livesession');
 
-        $mform->addElement('duration', 'duration', get_string('duration', 'mod_livesession'),
-            ['optional' => false, 'defaultunit' => MINSECS]);
+        $mform->addElement(
+            'duration',
+            'duration',
+            get_string('duration', 'mod_livesession'),
+            ['optional' => false, 'defaultunit' => MINSECS]
+        );
         $mform->setDefault('duration', (int) get_config('mod_livesession', 'defaultduration') ?: HOURSECS);
         $mform->addHelpButton('duration', 'duration', 'mod_livesession');
 
-        $mform->addElement('duration', 'joinwindowbefore', get_string('joinwindowbefore', 'mod_livesession'),
-            ['optional' => false, 'defaultunit' => MINSECS]);
+        $mform->addElement(
+            'duration',
+            'joinwindowbefore',
+            get_string('joinwindowbefore', 'mod_livesession'),
+            ['optional' => false, 'defaultunit' => MINSECS]
+        );
         $mform->setDefault('joinwindowbefore', 15 * MINSECS);
         $mform->addHelpButton('joinwindowbefore', 'joinwindowbefore', 'mod_livesession');
 
-        $mform->addElement('duration', 'joinwindowafter', get_string('joinwindowafter', 'mod_livesession'),
-            ['optional' => false, 'defaultunit' => MINSECS]);
+        $mform->addElement(
+            'duration',
+            'joinwindowafter',
+            get_string('joinwindowafter', 'mod_livesession'),
+            ['optional' => false, 'defaultunit' => MINSECS]
+        );
         $mform->setDefault('joinwindowafter', 15 * MINSECS);
         $mform->addHelpButton('joinwindowafter', 'joinwindowafter', 'mod_livesession');
 
-        // --- Meeting options ------------------------------------------------
-
+        // Meeting options.
         $mform->addElement('header', 'meetingheader', get_string('meetingoptions', 'mod_livesession'));
 
         $mform->addElement('text', 'zoomhostid', get_string('zoomhostid', 'mod_livesession'), ['size' => 48]);
@@ -105,8 +114,7 @@ class mod_livesession_mod_form extends moodleform_mod {
         ]);
         $mform->setDefault('autorecord', 'none');
 
-        // --- Attendance -----------------------------------------------------
-
+        // Attendance.
         $mform->addElement('header', 'attendanceheader', get_string('attendanceandgrading', 'mod_livesession'));
         $mform->setExpanded('attendanceheader');
 
@@ -130,8 +138,12 @@ class mod_livesession_mod_form extends moodleform_mod {
         $mform->hideIf('requiredminutes', 'gradingmethod', 'eq', attendance::GRADING_NONE);
         $mform->addHelpButton('requiredminutes', 'requiredminutes', 'mod_livesession');
 
-        $mform->addElement('duration', 'latethreshold', get_string('latethreshold', 'mod_livesession'),
-            ['optional' => false, 'defaultunit' => MINSECS]);
+        $mform->addElement(
+            'duration',
+            'latethreshold',
+            get_string('latethreshold', 'mod_livesession'),
+            ['optional' => false, 'defaultunit' => MINSECS]
+        );
         $mform->setDefault('latethreshold', 5 * MINSECS);
         $mform->addHelpButton('latethreshold', 'latethreshold', 'mod_livesession');
 
@@ -158,13 +170,22 @@ class mod_livesession_mod_form extends moodleform_mod {
         $mform = $this->_form;
 
         $group = [
-            $mform->createElement('checkbox', 'completionattendanceenabled', '',
-                get_string('completionattendance', 'mod_livesession')),
+            $mform->createElement(
+                'checkbox',
+                'completionattendanceenabled',
+                '',
+                get_string('completionattendance', 'mod_livesession')
+            ),
             $mform->createElement('text', 'completionattendance', '', ['size' => 4]),
         ];
         $mform->setType('completionattendance', PARAM_INT);
-        $mform->addGroup($group, 'completionattendancegroup',
-            get_string('completionattendancegroup', 'mod_livesession'), [' '], false);
+        $mform->addGroup(
+            $group,
+            'completionattendancegroup',
+            get_string('completionattendancegroup', 'mod_livesession'),
+            [' '],
+            false
+        );
         $mform->hideIf('completionattendance', 'completionattendanceenabled', 'notchecked');
         $mform->addHelpButton('completionattendancegroup', 'completionattendancegroup', 'mod_livesession');
 

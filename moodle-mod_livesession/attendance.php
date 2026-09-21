@@ -54,8 +54,13 @@ $showip = !empty($livesession->recordip) && get_config('mod_livesession', 'recor
 
 // Participants are everyone who could have joined, so absentees show up too.
 $currentgroup = groups_get_activity_group($cm, true);
-$users = get_enrolled_users($context, 'mod/livesession:join', $currentgroup,
-    'u.*', 'u.lastname ASC, u.firstname ASC');
+$users = get_enrolled_users(
+    $context,
+    'mod/livesession:join',
+    $currentgroup,
+    'u.*',
+    'u.lastname ASC, u.firstname ASC'
+);
 
 $records = attendance::get_records((int) $livesession->id);
 $byuser = [];
@@ -66,8 +71,7 @@ foreach ($records as $record) {
 $required = attendance::required_seconds($livesession);
 $graded = (int) $livesession->grade > 0 && (int) $livesession->gradingmethod !== attendance::GRADING_NONE;
 
-// --- CSV export -----------------------------------------------------------------
-
+// CSV export.
 if ($download === 'csv') {
     $filename = clean_filename(format_string($livesession->name) . '-attendance');
     $csv = new csv_export_writer();
@@ -104,7 +108,7 @@ if ($download === 'csv') {
             get_string('status:' . ($record->status ?? attendance::STATUS_ABSENT), 'mod_livesession'),
             ($record && $record->firstjoin) ? userdate($record->firstjoin) : '',
             ($record && $record->lastleave) ? userdate($record->lastleave) : '',
-            $record ? format_time((int) $record->duration) : '',
+            $record ? attendance::format_attended((int) $record->duration) : '',
             $record ? (int) $record->joincount : 0,
             ($record && $record->lastlogin) ? userdate($record->lastlogin) : '',
         ];
@@ -124,8 +128,7 @@ if ($download === 'csv') {
     exit;
 }
 
-// --- Screen output ----------------------------------------------------------------
-
+// Screen output.
 echo $OUTPUT->header();
 echo $OUTPUT->heading(format_string($livesession->name) . ': '
     . get_string('attendance', 'mod_livesession'));
@@ -172,16 +175,21 @@ foreach ($users as $user) {
     $statuscell = new html_table_cell(get_string('status:' . $status, 'mod_livesession'));
     $statuscell->attributes['class'] = 'status-' . $status;
     if ($record && $record->overridden) {
-        $statuscell->text .= ' ' . html_writer::tag('span',
-            get_string('overriddenshort', 'mod_livesession'), ['class' => 'badge bg-secondary']);
+        $statuscell->text .= ' ' . html_writer::tag(
+            'span',
+            get_string('overriddenshort', 'mod_livesession'),
+            ['class' => 'badge bg-secondary']
+        );
     }
 
     $row = [
-        html_writer::link(new moodle_url('/user/view.php',
-            ['id' => $user->id, 'course' => $course->id]), fullname($user)),
+        html_writer::link(new moodle_url(
+            '/user/view.php',
+            ['id' => $user->id, 'course' => $course->id]
+        ), fullname($user)),
         $statuscell,
         ($record && $record->firstjoin) ? userdate($record->firstjoin) : '-',
-        $record ? format_time((int) $record->duration) : '-',
+        $record ? attendance::format_attended((int) $record->duration) : '-',
         $record ? (int) $record->joincount : 0,
     ];
 

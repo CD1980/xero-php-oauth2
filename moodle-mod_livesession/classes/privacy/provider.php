@@ -39,10 +39,9 @@ use core_privacy\local\request\writer;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements
-        \core_privacy\local\metadata\provider,
-        \core_privacy\local\request\plugin\provider,
-        \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Describe the personal data this plugin stores and transmits.
      *
@@ -302,9 +301,15 @@ class provider implements
         [$insql, $params] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
         $params['livesessionid'] = $cm->instance;
 
-        $DB->delete_records_select('livesession_log',
-            "livesessionid = :livesessionid AND userid $insql", $params);
-        $DB->delete_records_select('livesession_attendance',
-            "livesessionid = :livesessionid AND userid $insql", $params);
+        $DB->delete_records_select(
+            'livesession_log',
+            "livesessionid = :livesessionid AND userid $insql",
+            $params
+        );
+        $DB->delete_records_select(
+            'livesession_attendance',
+            "livesessionid = :livesessionid AND userid $insql",
+            $params
+        );
     }
 }

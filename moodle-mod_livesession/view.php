@@ -68,8 +68,7 @@ $now = time();
 // neither is repeated here.
 echo $OUTPUT->header();
 
-// --- Schedule -----------------------------------------------------------------
-
+// Schedule.
 $schedule = new html_table();
 $schedule->attributes['class'] = 'generaltable mod-livesession-schedule';
 $schedule->data = [
@@ -86,14 +85,15 @@ if ((int) $livesession->gradingmethod !== attendance::GRADING_NONE && (int) $liv
 }
 echo html_writer::table($schedule);
 
-// --- Configuration problems, shown only to people who can act on them ----------
-
+// Configuration problems, shown only to people who can act on them.
 if ($ishost) {
     if (!client::is_configured() || !signature::is_configured()) {
         echo $OUTPUT->notification(get_string('error:notconfigured', 'mod_livesession'), 'error');
     } else if ($livesession->syncstatus === 'error') {
         echo $OUTPUT->notification(
-            get_string('error:syncfailed', 'mod_livesession', s($livesession->syncerror)), 'error');
+            get_string('error:syncfailed', 'mod_livesession', s($livesession->syncerror)),
+            'error'
+        );
     }
     if (!empty($livesession->joinurl)) {
         echo html_writer::tag('p', html_writer::link(
@@ -104,8 +104,7 @@ if ($ishost) {
     }
 }
 
-// --- The meeting itself ---------------------------------------------------------
-
+// The meeting itself.
 if ($left) {
     echo $OUTPUT->notification(get_string('youleft', 'mod_livesession'), 'info');
 }
@@ -116,7 +115,9 @@ if (!$canjoin) {
     echo $OUTPUT->notification(get_string('error:nomeeting', 'mod_livesession'), 'warning');
 } else if (!$ishost && $now < $windowopen) {
     echo $OUTPUT->notification(
-        get_string('notopenyet', 'mod_livesession', userdate($windowopen)), 'info');
+        get_string('notopenyet', 'mod_livesession', userdate($windowopen)),
+        'info'
+    );
 } else if (!$ishost && $now > $windowclose) {
     echo $OUTPUT->notification(get_string('sessionclosed', 'mod_livesession'), 'info');
 } else {
@@ -144,8 +145,7 @@ if (!$canjoin) {
     ]);
 }
 
-// --- Your own attendance so far -------------------------------------------------
-
+// Your own attendance so far.
 $myrecord = attendance::get_record((int) $livesession->id, (int) $USER->id);
 if ($myrecord) {
     echo $OUTPUT->heading(get_string('yourattendance', 'mod_livesession'), 3);
@@ -154,7 +154,8 @@ if ($myrecord) {
     $mine->data = [
         [get_string('status', 'mod_livesession'),
             get_string('status:' . $myrecord->status, 'mod_livesession')],
-        [get_string('attendedfor', 'mod_livesession'), format_time((int) $myrecord->duration)],
+        [get_string('attendedfor', 'mod_livesession'),
+            attendance::format_attended((int) $myrecord->duration)],
     ];
     if ($myrecord->firstjoin) {
         $mine->data[] = [get_string('firstjoin', 'mod_livesession'), userdate($myrecord->firstjoin)];
@@ -162,8 +163,7 @@ if ($myrecord) {
     echo html_writer::table($mine);
 }
 
-// --- Teacher shortcut ------------------------------------------------------------
-
+// Teacher shortcut.
 if (has_capability('mod/livesession:viewattendance', $context)) {
     echo html_writer::tag('p', html_writer::link(
         new moodle_url('/mod/livesession/attendance.php', ['id' => $cm->id]),

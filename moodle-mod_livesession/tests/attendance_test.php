@@ -27,7 +27,6 @@ use mod_livesession\local\attendance;
  * @covers     \mod_livesession\local\attendance
  */
 final class attendance_test extends \advanced_testcase {
-
     /** @var \stdClass */
     protected $course;
 
@@ -47,7 +46,7 @@ final class attendance_test extends \advanced_testcase {
         $this->student = $this->getDataGenerator()->create_user(['username' => 'jstudent']);
         $this->getDataGenerator()->enrol_user($this->student->id, $this->course->id, 'student');
 
-        // getremoteaddr() reads this; without it the IP capture cannot be asserted.
+        // Moodle's getremoteaddr() reads this; without it the IP capture cannot be asserted.
         $_SERVER['REMOTE_ADDR'] = '203.0.113.45';
         $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (TestBrowser)';
     }
@@ -61,8 +60,10 @@ final class attendance_test extends \advanced_testcase {
     protected function create_session(array $overrides = []): \stdClass {
         global $DB;
 
-        $instance = $this->getDataGenerator()->create_module('livesession',
-            ['course' => $this->course->id] + $overrides);
+        $instance = $this->getDataGenerator()->create_module(
+            'livesession',
+            ['course' => $this->course->id] + $overrides
+        );
 
         return $DB->get_record('livesession', ['id' => $instance->id], '*', MUST_EXIST);
     }
@@ -299,8 +300,13 @@ final class attendance_test extends \advanced_testcase {
         attendance::open_segment($session, (int) $this->student->id);
 
         $this->setUser($teacher);
-        $record = attendance::override($session, (int) $this->student->id,
-            attendance::STATUS_EXCUSED, 0, 'Medical certificate provided.');
+        $record = attendance::override(
+            $session,
+            (int) $this->student->id,
+            attendance::STATUS_EXCUSED,
+            0,
+            'Medical certificate provided.'
+        );
 
         $this->assertEquals(attendance::STATUS_EXCUSED, $record->status);
         $this->assertEquals(1, $record->overridden);
@@ -376,11 +382,21 @@ final class attendance_test extends \advanced_testcase {
 
         $this->setUser($this->student);
         $record = attendance::open_segment($session, (int) $this->student->id);
-        $this->rewind_lastseen($record, 40 * MINSECS);
-        attendance::heartbeat($session, (int) $this->student->id);
 
-        $grades = grade_get_grades($this->course->id, 'mod', 'livesession',
-            $session->id, $this->student->id);
+        // Accumulate 40 minutes the way a real client does, one heartbeat at a time.
+        // A single 40 minute gap would be clipped to the stale timeout by design.
+        for ($i = 0; $i < 20; $i++) {
+            $this->rewind_lastseen($record, 2 * MINSECS);
+            $record = attendance::heartbeat($session, (int) $this->student->id);
+        }
+
+        $grades = grade_get_grades(
+            $this->course->id,
+            'mod',
+            'livesession',
+            $session->id,
+            $this->student->id
+        );
         $item = reset($grades->items);
 
         $this->assertEquals(10.0, (float) $item->grades[$this->student->id]->grade);

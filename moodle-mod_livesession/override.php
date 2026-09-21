@@ -73,11 +73,20 @@ if ($data = $form->get_data()) {
     if (!empty($data->clearoverride)) {
         attendance::clear_override($livesession, $userid);
     } else {
-        attendance::override($livesession, $userid, $data->status,
-            (int) $data->durationminutes, (string) $data->remarks);
+        attendance::override(
+            $livesession,
+            $userid,
+            $data->status,
+            (int) $data->durationminutes,
+            (string) $data->remarks
+        );
     }
-    redirect($returnurl, get_string('attendancesaved', 'mod_livesession'), null,
-        \core\output\notification::NOTIFY_SUCCESS);
+    redirect(
+        $returnurl,
+        get_string('attendancesaved', 'mod_livesession'),
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 echo $OUTPUT->header();

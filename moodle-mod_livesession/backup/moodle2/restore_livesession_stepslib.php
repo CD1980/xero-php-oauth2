@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Restores the livesession activity structure.
  *
@@ -32,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class restore_livesession_activity_structure_step extends restore_activity_structure_step {
-
     /**
      * Elements this step can restore.
      *
@@ -45,10 +42,14 @@ class restore_livesession_activity_structure_step extends restore_activity_struc
         $paths[] = new restore_path_element('livesession', '/activity/livesession');
 
         if ($userinfo) {
-            $paths[] = new restore_path_element('livesession_attendance',
-                '/activity/livesession/attendances/attendance');
-            $paths[] = new restore_path_element('livesession_log',
-                '/activity/livesession/logs/log');
+            $paths[] = new restore_path_element(
+                'livesession_attendance',
+                '/activity/livesession/attendances/attendance'
+            );
+            $paths[] = new restore_path_element(
+                'livesession_log',
+                '/activity/livesession/logs/log'
+            );
         }
 
         return $this->prepare_activity_structure($paths);

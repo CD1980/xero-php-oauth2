@@ -28,7 +28,6 @@ use stdClass;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class meeting_manager {
-
     /** @var string Zoom meeting type: scheduled. */
     const TYPE_SCHEDULED = 2;
 
@@ -69,7 +68,6 @@ class meeting_manager {
             $livesession->joinurl = (string) ($meeting['join_url'] ?? '');
             $livesession->syncstatus = 'ok';
             $livesession->syncerror = null;
-
         } catch (zoom_exception $e) {
             $livesession->syncstatus = 'error';
             $livesession->syncerror = $e->getMessage();

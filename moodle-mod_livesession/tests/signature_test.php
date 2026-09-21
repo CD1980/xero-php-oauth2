@@ -28,7 +28,6 @@ use mod_livesession\local\zoom\zoom_exception;
  * @covers     \mod_livesession\local\zoom\signature
  */
 final class signature_test extends \advanced_testcase {
-
     /**
      * Decode a JWT segment.
      *
@@ -70,7 +69,8 @@ final class signature_test extends \advanced_testcase {
         $this->assertEquals($payload['exp'], $payload['tokenExp']);
 
         $expected = rtrim(strtr(base64_encode(
-            hash_hmac('sha256', $parts[0] . '.' . $parts[1], 'testsdksecret', true)), '+/', '-_'), '=');
+            hash_hmac('sha256', $parts[0] . '.' . $parts[1], 'testsdksecret', true)
+        ), '+/', '-_'), '=');
         $this->assertEquals($expected, $parts[2]);
     }
 

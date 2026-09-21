@@ -34,7 +34,6 @@ require_once($CFG->dirroot . '/mod/livesession/backup/moodle2/backup_livesession
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class backup_livesession_activity_task extends backup_activity_task {
-
     /**
      * No activity-specific backup settings.
      *
@@ -49,8 +48,10 @@ class backup_livesession_activity_task extends backup_activity_task {
      * @return void
      */
     protected function define_my_steps() {
-        $this->add_step(new backup_livesession_activity_structure_step('livesession_structure',
-            'livesession.xml'));
+        $this->add_step(new backup_livesession_activity_structure_step(
+            'livesession_structure',
+            'livesession.xml'
+        ));
     }
 
     /**
@@ -66,11 +67,15 @@ class backup_livesession_activity_task extends backup_activity_task {
 
         $content = preg_replace(
             '/(' . $base . '\/mod\/livesession\/index.php\?id\=)([0-9]+)/',
-            '$@LIVESESSIONINDEX*$2@$', $content);
+            '$@LIVESESSIONINDEX*$2@$',
+            $content
+        );
 
         $content = preg_replace(
             '/(' . $base . '\/mod\/livesession\/view.php\?id\=)([0-9]+)/',
-            '$@LIVESESSIONVIEWBYID*$2@$', $content);
+            '$@LIVESESSIONVIEWBYID*$2@$',
+            $content
+        );
 
         return $content;
     }

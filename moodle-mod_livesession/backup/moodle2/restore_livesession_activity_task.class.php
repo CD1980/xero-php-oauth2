@@ -34,7 +34,6 @@ require_once($CFG->dirroot . '/mod/livesession/backup/moodle2/restore_livesessio
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class restore_livesession_activity_task extends restore_activity_task {
-
     /**
      * No activity-specific restore settings.
      *
@@ -49,8 +48,10 @@ class restore_livesession_activity_task extends restore_activity_task {
      * @return void
      */
     protected function define_my_steps() {
-        $this->add_step(new restore_livesession_activity_structure_step('livesession_structure',
-            'livesession.xml'));
+        $this->add_step(new restore_livesession_activity_structure_step(
+            'livesession_structure',
+            'livesession.xml'
+        ));
     }
 
     /**
@@ -71,10 +72,16 @@ class restore_livesession_activity_task extends restore_activity_task {
      */
     public static function define_decode_rules() {
         return [
-            new restore_decode_rule('LIVESESSIONVIEWBYID',
-                '/mod/livesession/view.php?id=$1', 'course_module'),
-            new restore_decode_rule('LIVESESSIONINDEX',
-                '/mod/livesession/index.php?id=$1', 'course'),
+            new restore_decode_rule(
+                'LIVESESSIONVIEWBYID',
+                '/mod/livesession/view.php?id=$1',
+                'course_module'
+            ),
+            new restore_decode_rule(
+                'LIVESESSIONINDEX',
+                '/mod/livesession/index.php?id=$1',
+                'course'
+            ),
         ];
     }
 }

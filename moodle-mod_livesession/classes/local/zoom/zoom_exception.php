@@ -26,7 +26,6 @@ use moodle_exception;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class zoom_exception extends moodle_exception {
-
     /** @var int HTTP status code returned by Zoom, or 0 if the call never completed. */
     public $httpstatus;
 
@@ -34,6 +33,8 @@ class zoom_exception extends moodle_exception {
     public $zoomcode;
 
     /**
+     * Construct the exception from what Zoom told us.
+     *
      * @param string $detail human readable detail, already safe to show an admin
      * @param int $httpstatus
      * @param int $zoomcode

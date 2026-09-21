@@ -37,7 +37,6 @@ use stdClass;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class attendance {
-
     /** @var string Never joined. */
     const STATUS_ABSENT = 'absent';
 
@@ -248,7 +247,7 @@ class attendance {
 
         return [
             'ip'          => $recordip ? substr((string) getremoteaddr(), 0, 45) : null,
-            'useragent'   => substr((string) \core_useragent::get_user_agent_string(), 0, 255),
+            'useragent'   => substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
             'sessionhash' => hash('sha256', session_id() . $CFG->siteidentifier),
             'username'    => $user ? substr((string) $user->username, 0, 100) : '',
             'lastlogin'   => $user ? (int) ($user->currentlogin ?? 0) : 0,
@@ -265,8 +264,13 @@ class attendance {
      * @param array $extra additional detail to store as JSON
      * @return void
      */
-    public static function log(stdClass $livesession, stdClass $record, string $action,
-            ?array $identity = null, array $extra = []): void {
+    public static function log(
+        stdClass $livesession,
+        stdClass $record,
+        string $action,
+        ?array $identity = null,
+        array $extra = []
+    ): void {
         global $DB;
 
         $identity = $identity ?? self::capture_identity($livesession, (int) $record->userid);
@@ -282,6 +286,22 @@ class attendance {
             'extra'         => $extra ? json_encode($extra) : null,
             'timecreated'   => time(),
         ]);
+    }
+
+    /**
+     * Render an attended duration for display.
+     *
+     * format_time(0) renders as "now", which is meaningless as a duration, so zero
+     * gets its own wording.
+     *
+     * @param int $seconds
+     * @return string
+     */
+    public static function format_attended(int $seconds): string {
+        if ($seconds <= 0) {
+            return get_string('attendednone', 'mod_livesession');
+        }
+        return format_time($seconds);
     }
 
     /**
@@ -418,7 +438,7 @@ class attendance {
 
         $rows = [];
         $rows[] = [get_string('status', 'mod_livesession'), get_string('status:' . $record->status, 'mod_livesession')];
-        $rows[] = [get_string('attendedfor', 'mod_livesession'), format_time((int) $record->duration)];
+        $rows[] = [get_string('attendedfor', 'mod_livesession'), self::format_attended((int) $record->duration)];
 
         if (!empty($record->firstjoin)) {
             $rows[] = [get_string('firstjoin', 'mod_livesession'), userdate($record->firstjoin)];
@@ -488,8 +508,13 @@ class attendance {
      * @param string $remarks
      * @return stdClass
      */
-    public static function override(stdClass $livesession, int $userid, string $status,
-            ?int $durationminutes, string $remarks): stdClass {
+    public static function override(
+        stdClass $livesession,
+        int $userid,
+        string $status,
+        ?int $durationminutes,
+        string $remarks
+    ): stdClass {
         global $DB, $USER;
 
         $now = time();

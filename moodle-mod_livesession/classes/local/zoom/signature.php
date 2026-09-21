@@ -28,7 +28,6 @@ namespace mod_livesession\local\zoom;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class signature {
-
     /** @var int Role value for an ordinary attendee. */
     const ROLE_ATTENDEE = 0;
 

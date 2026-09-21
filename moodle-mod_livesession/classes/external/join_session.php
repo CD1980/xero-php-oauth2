@@ -37,7 +37,6 @@ use moodle_url;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class join_session extends external_api {
-
     use session_trait;
 
     /**
@@ -97,8 +96,10 @@ class join_session extends external_api {
             'useremail'         => $ishost ? (string) $USER->email : '',
             'role'              => $role,
             'heartbeatinterval' => attendance::heartbeat_interval(),
-            'leaveurl'          => (new moodle_url('/mod/livesession/view.php',
-                ['id' => $cm->id, 'left' => 1]))->out(false),
+            'leaveurl'          => (new moodle_url(
+                '/mod/livesession/view.php',
+                ['id' => $cm->id, 'left' => 1]
+            ))->out(false),
         ];
     }
 

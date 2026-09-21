@@ -25,7 +25,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 if ($ADMIN->fulltree) {
-
     $settings->add(new admin_setting_heading(
         'mod_livesession/s2sheading',
         get_string('settings:s2sheading', 'mod_livesession'),

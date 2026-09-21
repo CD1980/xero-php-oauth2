@@ -30,7 +30,6 @@ use mod_livesession\local\attendance;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class record_leave extends external_api {
-
     use session_trait;
 
     /**
