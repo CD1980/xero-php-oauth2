@@ -77,7 +77,9 @@ $schedule->data = [
     [get_string('duration', 'mod_livesession'), format_time((int) $livesession->duration)],
     [get_string('joinopens', 'mod_livesession'), userdate($windowopen)],
 ];
-if ((int) $livesession->gradingmethod !== attendance::GRADING_NONE && (int) $livesession->grade > 0) {
+if (attendance::tracks_duration($livesession)
+        && (int) $livesession->gradingmethod !== attendance::GRADING_NONE
+        && (int) $livesession->grade > 0) {
     $schedule->data[] = [
         get_string('attendancerequirement', 'mod_livesession'),
         format_time(attendance::required_seconds($livesession)),
@@ -87,6 +89,24 @@ echo html_writer::table($schedule);
 
 // Configuration problems, shown only to people who can act on them.
 if ($ishost) {
+    // Which room this is matters to whoever is running it: a setting changed here may
+    // belong to another session, or may land on every cohort sharing this one.
+    $master = meeting_manager::get_master($livesession);
+    if ($master) {
+        echo $OUTPUT->notification(
+            get_string('sharedmeetingfrom', 'mod_livesession', format_string($master->name)),
+            'info'
+        );
+    } else if (!empty($livesession->ismaster)) {
+        $childcount = count(meeting_manager::get_children((int) $livesession->id));
+        if ($childcount > 0) {
+            echo $OUTPUT->notification(
+                get_string('sharedmeetingmaster', 'mod_livesession', $childcount),
+                'info'
+            );
+        }
+    }
+
     if (!client::is_configured() || !signature::is_configured()) {
         echo $OUTPUT->notification(get_string('error:notconfigured', 'mod_livesession'), 'error');
     } else if ($livesession->syncstatus === 'error') {
@@ -130,9 +150,18 @@ if (!$canjoin) {
         'counterid' => 'livesession-counter-' . $cm->id,
     ];
 
-    $notice = !empty($livesession->recordip) && get_config('mod_livesession', 'recordip')
-        ? get_string('attendancenoticeip', 'mod_livesession')
-        : get_string('attendancenotice', 'mod_livesession');
+    // The notice has to describe what is actually kept: promising a student that their
+    // time is being measured, in a session that measures nothing, is the wrong promise.
+    $recordsip = !empty($livesession->recordip) && get_config('mod_livesession', 'recordip');
+    if (attendance::tracks_duration($livesession)) {
+        $notice = $recordsip
+            ? get_string('attendancenoticeip', 'mod_livesession')
+            : get_string('attendancenotice', 'mod_livesession');
+    } else {
+        $notice = $recordsip
+            ? get_string('attendancenoticepresenceip', 'mod_livesession')
+            : get_string('attendancenoticepresence', 'mod_livesession');
+    }
 
     echo $OUTPUT->render_from_template('mod_livesession/embed', $ids + [
         'buttonlabel' => $ishost
@@ -157,9 +186,11 @@ if ($myrecord) {
     $mine->data = [
         [get_string('status', 'mod_livesession'),
             get_string('status:' . $myrecord->status, 'mod_livesession')],
-        [get_string('attendedfor', 'mod_livesession'),
-            attendance::format_attended((int) $myrecord->duration)],
     ];
+    if (attendance::tracks_duration($livesession)) {
+        $mine->data[] = [get_string('attendedfor', 'mod_livesession'),
+            attendance::format_attended((int) $myrecord->duration)];
+    }
     if ($myrecord->firstjoin) {
         $mine->data[] = [get_string('firstjoin', 'mod_livesession'), userdate($myrecord->firstjoin)];
     }

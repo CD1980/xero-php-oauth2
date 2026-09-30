@@ -53,22 +53,32 @@ class override_form extends moodleform {
             $this->_customdata['fullname']
         );
 
-        $mform->addElement('select', 'status', get_string('status', 'mod_livesession'), [
+        $showduration = !empty($this->_customdata['showduration']);
+
+        $statuses = [
             attendance::STATUS_PRESENT => get_string('status:present', 'mod_livesession'),
             attendance::STATUS_LATE    => get_string('status:late', 'mod_livesession'),
-            attendance::STATUS_PARTIAL => get_string('status:partial', 'mod_livesession'),
-            attendance::STATUS_ABSENT  => get_string('status:absent', 'mod_livesession'),
-            attendance::STATUS_EXCUSED => get_string('status:excused', 'mod_livesession'),
-        ]);
+        ];
+        // Partial attendance is a statement about time, so it is only offered where time
+        // is measured; elsewhere a student either turned up or did not.
+        if ($showduration) {
+            $statuses[attendance::STATUS_PARTIAL] = get_string('status:partial', 'mod_livesession');
+        }
+        $statuses[attendance::STATUS_ABSENT] = get_string('status:absent', 'mod_livesession');
+        $statuses[attendance::STATUS_EXCUSED] = get_string('status:excused', 'mod_livesession');
 
-        $mform->addElement(
-            'text',
-            'durationminutes',
-            get_string('attendedminutes', 'mod_livesession'),
-            ['size' => 5]
-        );
-        $mform->setType('durationminutes', PARAM_INT);
-        $mform->addHelpButton('durationminutes', 'attendedminutes', 'mod_livesession');
+        $mform->addElement('select', 'status', get_string('status', 'mod_livesession'), $statuses);
+
+        if ($showduration) {
+            $mform->addElement(
+                'text',
+                'durationminutes',
+                get_string('attendedminutes', 'mod_livesession'),
+                ['size' => 5]
+            );
+            $mform->setType('durationminutes', PARAM_INT);
+            $mform->addHelpButton('durationminutes', 'attendedminutes', 'mod_livesession');
+        }
 
         $mform->addElement(
             'textarea',
@@ -97,7 +107,7 @@ class override_form extends moodleform {
      */
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
-        if ((int) $data['durationminutes'] < 0) {
+        if (isset($data['durationminutes']) && (int) $data['durationminutes'] < 0) {
             $errors['durationminutes'] = get_string('error:negativeminutes', 'mod_livesession');
         }
         return $errors;

@@ -16,12 +16,20 @@
 
 namespace mod_livesession\local;
 
+use context_course;
 use mod_livesession\local\zoom\client;
 use mod_livesession\local\zoom\zoom_exception;
 use stdClass;
 
 /**
  * Keeps the Zoom meeting behind an activity instance in step with the Moodle record.
+ *
+ * Most sessions own a meeting of their own. A session may instead borrow another
+ * session's meeting, so that one instructor hosts a single room and several cohorts
+ * running at the same time all land in it. The session that owns the room is the
+ * master; the ones borrowing it are its children. A child never creates, updates or
+ * deletes anything at Zoom - it copies the master's meeting details and otherwise keeps
+ * its own schedule, join window, attendance and grades.
  *
  * @package    mod_livesession
  * @copyright  2026 Aspire Education and Training
@@ -43,6 +51,10 @@ class meeting_manager {
      */
     public static function sync(stdClass $livesession): stdClass {
         global $DB;
+
+        if (!empty($livesession->mastersessionid)) {
+            return self::link_to_master($livesession);
+        }
 
         try {
             $zoom = client::instance();
@@ -76,7 +88,193 @@ class meeting_manager {
         $livesession->timemodified = time();
         $DB->update_record('livesession', $livesession);
 
+        // A child holds a copy of these details, so a change here has to reach it or it
+        // would go on sending students to the previous meeting number.
+        if (!empty($livesession->ismaster)) {
+            self::propagate_to_children($livesession);
+        }
+
         return $livesession;
+    }
+
+    /**
+     * Point a session at the meeting owned by its master.
+     *
+     * Nothing is sent to Zoom: the master's meeting already exists, and a child that
+     * tried to update it would be fighting the master over the same room.
+     *
+     * @param stdClass $livesession row from {livesession}, updated in place
+     * @return stdClass
+     */
+    protected static function link_to_master(stdClass $livesession): stdClass {
+        global $DB;
+
+        $master = self::get_master($livesession);
+
+        if (!$master) {
+            $livesession->syncstatus = 'error';
+            $livesession->syncerror = get_string('error:mastermissing', 'mod_livesession');
+            $livesession->meetingid = null;
+            $livesession->meetinguuid = null;
+            $livesession->passcode = null;
+            $livesession->joinurl = null;
+        } else if (empty($master->meetingid)) {
+            // The master exists but has no room yet, usually because its own sync to Zoom
+            // failed. Say so plainly rather than leaving the child silently empty.
+            $livesession->syncstatus = 'error';
+            $livesession->syncerror = get_string('error:masternotready', 'mod_livesession');
+            $livesession->meetingid = null;
+        } else {
+            $livesession->meetingid = $master->meetingid;
+            $livesession->meetinguuid = $master->meetinguuid;
+            $livesession->passcode = $master->passcode;
+            $livesession->joinurl = $master->joinurl;
+            $livesession->zoomhostid = $master->zoomhostid;
+            $livesession->syncstatus = 'linked';
+            $livesession->syncerror = null;
+        }
+
+        $livesession->timemodified = time();
+        $DB->update_record('livesession', $livesession);
+
+        return $livesession;
+    }
+
+    /**
+     * Copy a master's meeting details onto every session sharing its room.
+     *
+     * @param stdClass $master
+     * @return void
+     */
+    public static function propagate_to_children(stdClass $master): void {
+        global $DB;
+
+        $children = self::get_children((int) $master->id);
+        foreach ($children as $child) {
+            $child->meetingid = $master->meetingid;
+            $child->meetinguuid = $master->meetinguuid;
+            $child->passcode = $master->passcode;
+            $child->joinurl = $master->joinurl;
+            $child->zoomhostid = $master->zoomhostid;
+            $child->syncstatus = empty($master->meetingid) ? 'error' : 'linked';
+            $child->syncerror = empty($master->meetingid)
+                ? get_string('error:masternotready', 'mod_livesession')
+                : null;
+            $child->timemodified = time();
+            $DB->update_record('livesession', $child);
+        }
+    }
+
+    /**
+     * Release every session that was sharing this one's room.
+     *
+     * Called when the master is about to be deleted. The children are not quietly given
+     * meetings of their own: that would conjure up a Zoom meeting per course behind the
+     * teacher's back. They are unlinked and flagged instead, so the next person to open
+     * one is told what happened and can decide.
+     *
+     * @param stdClass $master
+     * @return void
+     */
+    public static function unlink_children(stdClass $master): void {
+        global $DB;
+
+        foreach (self::get_children((int) $master->id) as $child) {
+            $child->mastersessionid = 0;
+            $child->meetingid = null;
+            $child->meetinguuid = null;
+            $child->passcode = null;
+            $child->joinurl = null;
+            $child->syncstatus = 'error';
+            $child->syncerror = get_string('error:masterdeleted', 'mod_livesession');
+            $child->timemodified = time();
+            $DB->update_record('livesession', $child);
+        }
+    }
+
+    /**
+     * The session whose room this one borrows, if any.
+     *
+     * @param stdClass $livesession
+     * @return stdClass|null
+     */
+    public static function get_master(stdClass $livesession): ?stdClass {
+        global $DB;
+
+        if (empty($livesession->mastersessionid)) {
+            return null;
+        }
+        $master = $DB->get_record('livesession', ['id' => (int) $livesession->mastersessionid]);
+
+        // A master that is itself borrowing a room would make a chain, which nothing in
+        // the form allows and which get_children() would not follow. Refuse it.
+        if (!$master || !empty($master->mastersessionid)) {
+            return null;
+        }
+        return $master;
+    }
+
+    /**
+     * Every session sharing this one's room.
+     *
+     * @param int $masterid
+     * @return array
+     */
+    public static function get_children(int $masterid): array {
+        global $DB;
+        return $masterid ? $DB->get_records('livesession', ['mastersessionid' => $masterid]) : [];
+    }
+
+    /**
+     * Sessions the current user may borrow a room from, as a select menu.
+     *
+     * The bar is being able to add a live session to the master's course: someone who
+     * could schedule a session there anyway is not gaining reach by pointing a session at
+     * that course's room.
+     *
+     * @param int $excludeid a session to leave out, normally the one being edited
+     * @return array session id => human readable label, with 0 => none first
+     */
+    public static function master_menu(int $excludeid = 0): array {
+        global $DB;
+
+        $menu = [0 => get_string('nomastersession', 'mod_livesession')];
+
+        $select = 'ismaster = 1 AND mastersessionid = 0';
+        $params = [];
+        if ($excludeid) {
+            $select .= ' AND id <> :excludeid';
+            $params['excludeid'] = $excludeid;
+        }
+        $masters = $DB->get_records_select('livesession', $select, $params, 'starttime ASC');
+        if (!$masters) {
+            return $menu;
+        }
+
+        $courses = $DB->get_records_list(
+            'course',
+            'id',
+            array_unique(array_map(static fn($m) => (int) $m->course, $masters)),
+            '',
+            'id, shortname'
+        );
+
+        foreach ($masters as $master) {
+            $course = $courses[$master->course] ?? null;
+            if (!$course) {
+                continue;
+            }
+            if (!has_capability('mod/livesession:addinstance', context_course::instance($course->id))) {
+                continue;
+            }
+            $menu[(int) $master->id] = get_string('mastersessionlabel', 'mod_livesession', (object) [
+                'course'  => format_string($course->shortname),
+                'name'    => format_string($master->name),
+                'starts'  => userdate($master->starttime, get_string('strftimedatetimeshort', 'langconfig')),
+            ]);
+        }
+
+        return $menu;
     }
 
     /**
@@ -139,6 +337,11 @@ class meeting_manager {
      * @return void
      */
     public static function delete(stdClass $livesession): void {
+        // The meeting id on a child is a copy of the master's. Deleting it here would
+        // pull the room out from under the master and every other cohort in it.
+        if (!empty($livesession->mastersessionid)) {
+            return;
+        }
         if (empty($livesession->meetingid) || !client::is_configured()) {
             return;
         }

@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 use mod_livesession\local\attendance;
+use mod_livesession\local\meeting_manager;
 
 require_once($CFG->dirroot . '/course/moodleform_mod.php');
 
@@ -91,6 +92,24 @@ class mod_livesession_mod_form extends moodleform_mod {
         // Meeting options.
         $mform->addElement('header', 'meetingheader', get_string('meetingoptions', 'mod_livesession'));
 
+        $mform->addElement(
+            'select',
+            'mastersessionid',
+            get_string('mastersessionid', 'mod_livesession'),
+            meeting_manager::master_menu((int) ($this->_instance ?? 0))
+        );
+        $mform->setDefault('mastersessionid', 0);
+        $mform->addHelpButton('mastersessionid', 'mastersessionid', 'mod_livesession');
+
+        $mform->addElement('advcheckbox', 'ismaster', get_string('ismaster', 'mod_livesession'));
+        $mform->setDefault('ismaster', 0);
+        $mform->addHelpButton('ismaster', 'ismaster', 'mod_livesession');
+
+        // A session either owns a room or borrows one; it cannot do both, and the
+        // meeting's own settings belong to whoever owns it.
+        $mform->hideIf('ismaster', 'mastersessionid', 'neq', 0);
+        $mform->hideIf('mastersessionid', 'ismaster', 'checked');
+
         $mform->addElement('text', 'zoomhostid', get_string('zoomhostid', 'mod_livesession'), ['size' => 48]);
         $mform->setType('zoomhostid', PARAM_RAW_TRIMMED);
         $mform->setDefault('zoomhostid', (string) get_config('mod_livesession', 'defaulthost'));
@@ -114,9 +133,20 @@ class mod_livesession_mod_form extends moodleform_mod {
         ]);
         $mform->setDefault('autorecord', 'none');
 
+        foreach (['zoomhostid', 'waitingroom', 'joinbeforehost', 'muteonentry', 'autorecord'] as $meetingsetting) {
+            $mform->hideIf($meetingsetting, 'mastersessionid', 'neq', 0);
+        }
+
         // Attendance.
         $mform->addElement('header', 'attendanceheader', get_string('attendanceandgrading', 'mod_livesession'));
         $mform->setExpanded('attendanceheader');
+
+        $mform->addElement('select', 'attendancemode', get_string('attendancemode', 'mod_livesession'), [
+            attendance::MODE_PRESENCE => get_string('attendancemode:presence', 'mod_livesession'),
+            attendance::MODE_DURATION => get_string('attendancemode:duration', 'mod_livesession'),
+        ]);
+        $mform->setDefault('attendancemode', attendance::MODE_PRESENCE);
+        $mform->addHelpButton('attendancemode', 'attendancemode', 'mod_livesession');
 
         $mform->addElement('select', 'gradingmethod', get_string('gradingmethod', 'mod_livesession'), [
             attendance::GRADING_NONE         => get_string('gradingmethod:none', 'mod_livesession'),
@@ -130,12 +160,14 @@ class mod_livesession_mod_form extends moodleform_mod {
         $mform->setType('requiredpercent', PARAM_INT);
         $mform->setDefault('requiredpercent', 80);
         $mform->hideIf('requiredpercent', 'gradingmethod', 'eq', attendance::GRADING_NONE);
+        $mform->hideIf('requiredpercent', 'attendancemode', 'eq', attendance::MODE_PRESENCE);
         $mform->addHelpButton('requiredpercent', 'requiredpercent', 'mod_livesession');
 
         $mform->addElement('text', 'requiredminutes', get_string('requiredminutes', 'mod_livesession'), ['size' => 5]);
         $mform->setType('requiredminutes', PARAM_INT);
         $mform->setDefault('requiredminutes', 0);
         $mform->hideIf('requiredminutes', 'gradingmethod', 'eq', attendance::GRADING_NONE);
+        $mform->hideIf('requiredminutes', 'attendancemode', 'eq', attendance::MODE_PRESENCE);
         $mform->addHelpButton('requiredminutes', 'requiredminutes', 'mod_livesession');
 
         $mform->addElement(
@@ -187,6 +219,7 @@ class mod_livesession_mod_form extends moodleform_mod {
             false
         );
         $mform->hideIf('completionattendance', 'completionattendanceenabled', 'notchecked');
+        $mform->hideIf('completionattendance', 'attendancemode', 'eq', attendance::MODE_PRESENCE);
         $mform->addHelpButton('completionattendancegroup', 'completionattendancegroup', 'mod_livesession');
 
         return ['completionattendancegroup'];
@@ -209,9 +242,15 @@ class mod_livesession_mod_form extends moodleform_mod {
      * @return void
      */
     public function data_preprocessing(&$defaultvalues) {
-        $minutes = (int) ($defaultvalues['completionattendance'] ?? 0);
-        $defaultvalues['completionattendanceenabled'] = $minutes > 0 ? 1 : 0;
-        if ($minutes <= 0) {
+        $stored = (int) ($defaultvalues['completionattendance'] ?? 0);
+        $defaultvalues['completionattendanceenabled'] = $stored > 0 ? 1 : 0;
+
+        // In present-on-join mode the stored value is the flag 1, not a minute count, so
+        // showing it in the minutes box would offer "1 minute" to anyone who switched
+        // the session back to timed attendance.
+        $presence = (int) ($defaultvalues['attendancemode'] ?? attendance::MODE_PRESENCE)
+            === attendance::MODE_PRESENCE;
+        if ($stored <= 0 || $presence) {
             $defaultvalues['completionattendance'] = 15;
         }
     }
@@ -230,8 +269,20 @@ class mod_livesession_mod_form extends moodleform_mod {
             $autocompletion = !empty($data->completion) && $data->completion == COMPLETION_TRACKING_AUTOMATIC;
             if (empty($data->completionattendanceenabled) || !$autocompletion) {
                 $data->completionattendance = 0;
+            } else if ((int) $data->attendancemode === attendance::MODE_PRESENCE) {
+                // The minutes box is hidden in this mode, so it carries no useful value.
+                // Store 1 to mean "the rule is on"; custom_completion reads it as
+                // "must have joined" rather than as a number of minutes.
+                $data->completionattendance = 1;
             }
         }
+
+        // A session that lends its room cannot also borrow one, and vice versa. The form
+        // hides whichever is irrelevant, but a hidden element still submits its value.
+        if (!empty($data->mastersessionid)) {
+            $data->ismaster = 0;
+        }
+
         return $data;
     }
 
@@ -264,9 +315,61 @@ class mod_livesession_mod_form extends moodleform_mod {
             $errors['requiredminutes'] = get_string('error:negativeminutes', 'mod_livesession');
         }
 
+        $presence = (int) ($data['attendancemode'] ?? attendance::MODE_PRESENCE) === attendance::MODE_PRESENCE;
+
         $requiredseconds = (int) ($data['requiredminutes'] ?? 0) * MINSECS;
-        if ($requiredseconds > (int) $data['duration']) {
+        if (!$presence && $requiredseconds > (int) $data['duration']) {
             $errors['requiredminutes'] = get_string('error:requiredexceedsduration', 'mod_livesession');
+        }
+
+        // Proportional marking apportions a grade across the time attended, and
+        // present-on-join measures no time to apportion.
+        if ($presence && (int) ($data['gradingmethod'] ?? 0) === attendance::GRADING_PROPORTIONAL) {
+            $errors['gradingmethod'] = get_string('error:proportionalneedstime', 'mod_livesession');
+        }
+
+        $errors += $this->validate_shared_room($data);
+
+        return $errors;
+    }
+
+    /**
+     * Check the shared-room choices against what actually exists.
+     *
+     * @param array $data submitted form data
+     * @return array errors keyed by element name
+     */
+    protected function validate_shared_room(array $data): array {
+        global $DB;
+
+        $errors = [];
+        $masterid = (int) ($data['mastersessionid'] ?? 0);
+        $instanceid = (int) ($this->_instance ?? 0);
+
+        // Choosing a room to borrow settles the question: this session cannot also lend
+        // one. The lending checkbox is hidden at that point but still submits whatever it
+        // held, so it is resolved here exactly as get_data() resolves it - otherwise a
+        // session that lends a room today could be turned into a borrower tomorrow while
+        // the stale checkbox hides the fact that its children are about to be cut off.
+        $lendsaroom = !$masterid && !empty($data['ismaster']);
+
+        // Re-check against the menu rather than the table: the menu is what applies the
+        // capability test, so a hand-posted id cannot reach a course the user could not
+        // schedule a session in.
+        if ($masterid && !array_key_exists($masterid, meeting_manager::master_menu($instanceid))) {
+            $errors['mastersessionid'] = get_string('error:masterunavailable', 'mod_livesession');
+        }
+
+        // Withdrawing a room that other sessions are relying on would cut them off with
+        // no warning, so it has to be undone from those sessions first.
+        if ($instanceid && !$lendsaroom) {
+            $children = $DB->count_records('livesession', ['mastersessionid' => $instanceid]);
+            if ($children > 0) {
+                // The message hangs off whichever control the teacher just used, so it
+                // lands somewhere they can see rather than on the hidden checkbox.
+                $field = $masterid ? 'mastersessionid' : 'ismaster';
+                $errors[$field] = get_string('error:masterhaschildren', 'mod_livesession', $children);
+            }
         }
 
         return $errors;

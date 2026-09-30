@@ -89,6 +89,24 @@ Then visit *Site administration → Notifications* to run the database upgrade.
 
 ## How attendance is captured
 
+Each session picks an **attendance mode** on its settings form.
+
+### Present on join (the default)
+
+Turning up is the whole test. The student clicks **Join the session**, the browser asks
+the server for a signature, and the server mints it, opens an attendance record and marks
+the student present there and then. No time is measured, accumulated, graded or displayed:
+there is no check-in traffic, no running counter, and no "attended for" column anywhere.
+
+A late arrival is still marked *late* rather than *present*, because that is a statement
+about when they arrived, not how long they stayed. Grading is all or nothing — a student
+who joined earns the full mark, one who did not earns zero — and *proportional* grading
+collapses into the same thing, since there is no time to apportion.
+
+### Time based
+
+The original behaviour, kept for sessions where staying matters.
+
 1. The student clicks **Join the session**. The browser asks the server for a signature;
    the server mints it, opens an attendance record, and stamps it with the request's IP
    address, the browser user agent, the student's username and their last Moodle sign-in
@@ -105,14 +123,43 @@ Then visit *Site administration → Notifications* to run the database upgrade.
    evidence as feedback. The gradebook is only touched when the mark or status actually
    changes, so heartbeats do not hammer it.
 
+Both of the time-based scheduled tasks skip present-on-join sessions outright — there is
+nothing for them to close out or reconcile.
+
 **Grading options**
 
 - *Not graded* — attendance is recorded, no mark is written.
 - *All or nothing* — full marks once the attendance requirement is met, zero otherwise.
 - *Proportional* — the mark is the fraction of the scheduled duration attended.
+  Present-on-join sessions treat this as *all or nothing*.
 
-The requirement is a percentage of the scheduled duration, or an absolute number of
-minutes if you set one.
+In time-based mode the requirement is a percentage of the scheduled duration, or an
+absolute number of minutes if you set one.
+
+## Shared rooms
+
+An instructor cannot be in two Zoom meetings at once, so several cohorts running at the
+same time can be pointed at a single room instead.
+
+- Tick **Let other sessions share this meeting** on the session that owns the room.
+- On each of the other sessions, pick that session under **Share another session's
+  meeting**. They stop creating meetings of their own and take the owner's meeting number,
+  passcode, join URL and host.
+- Attendance is still recorded separately per activity, against each cohort's own roster,
+  grade item and completion rule. Only the room is shared.
+
+The menu only offers sessions you could add an activity to, so pointing at a room is never
+a way to reach a course you cannot already schedule in. The meeting settings (host,
+waiting room, recording) belong to the owning session and are hidden on the ones borrowing
+it. Changing the owner's meeting moves every session sharing it.
+
+Someone who can host a borrowing session is only given the Zoom **host** role if they
+could also host the session that owns the room; otherwise they join as an attendee. An SDK
+host can end the meeting for everyone in it, and in a shared room that is not one cohort's
+to do.
+
+Deleting the owner does not silently conjure a meeting per orphaned cohort: the sharing
+sessions are released and flagged, and the next person to open one is told what happened.
 
 **Corrections** — a teacher with `mod/livesession:manageattendance` can correct any record
 from the attendance report. A corrected record is left alone by the automation until the
@@ -171,6 +218,11 @@ it on:
   use a browser.
 - **Restore.** A restored copy does not inherit the original Zoom meeting — the meeting may
   belong to another Zoom account. Open and save the restored activity to create a fresh one.
+  A session that was sharing another session's room comes back owning its own: the link
+  names an activity that is not in the backup, and an id carried into a different course or
+  site would point at whatever activity happened to hold it there.
+- **Shared rooms are one level deep.** A session that borrows a room cannot lend it on. A
+  room has exactly one owner, which is what makes "who may host it" answerable.
 
 ## Development
 

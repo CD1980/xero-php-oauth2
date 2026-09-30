@@ -39,8 +39,8 @@ class custom_completion extends activity_custom_completion {
         $this->validate_rule($rule);
 
         $livesession = $DB->get_record('livesession', ['id' => $this->cm->instance], '*', MUST_EXIST);
-        $requiredminutes = (int) $livesession->completionattendance;
-        if ($requiredminutes <= 0) {
+        $required = (int) $livesession->completionattendance;
+        if ($required <= 0) {
             return COMPLETION_INCOMPLETE;
         }
 
@@ -49,7 +49,13 @@ class custom_completion extends activity_custom_completion {
             return COMPLETION_INCOMPLETE;
         }
 
-        return ((int) $record->duration >= $requiredminutes * MINSECS)
+        // In present-on-join mode the stored number is only a flag that the rule is on;
+        // there are no minutes to compare against, so joining is the whole condition.
+        if (attendance::is_presence_mode($livesession)) {
+            return !empty($record->firstjoin) ? COMPLETION_COMPLETE : COMPLETION_INCOMPLETE;
+        }
+
+        return ((int) $record->duration >= $required * MINSECS)
             ? COMPLETION_COMPLETE
             : COMPLETION_INCOMPLETE;
     }
@@ -70,9 +76,13 @@ class custom_completion extends activity_custom_completion {
      */
     public function get_custom_rule_descriptions(): array {
         $minutes = (int) ($this->cm->customdata['customcompletionrules']['completionattendance'] ?? 0);
-        return [
-            'completionattendance' => get_string('completiondetail:attendance', 'mod_livesession', $minutes),
-        ];
+        $mode = (int) ($this->cm->customdata['attendancemode'] ?? attendance::MODE_PRESENCE);
+
+        $description = $mode === attendance::MODE_DURATION
+            ? get_string('completiondetail:attendance', 'mod_livesession', $minutes)
+            : get_string('completiondetail:joined', 'mod_livesession');
+
+        return ['completionattendance' => $description];
     }
 
     /**

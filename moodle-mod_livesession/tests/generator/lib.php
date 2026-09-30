@@ -71,8 +71,10 @@ class mod_livesession_generator extends testing_module_generator {
             'syncstatus'           => 'ok',
         ];
 
+        // property_exists, not isset: a test that asks for a session with no meeting id
+        // passes null, and isset() would read that as "not supplied" and fill it back in.
         foreach ($defaults as $key => $value) {
-            if (!isset($record->{$key})) {
+            if (!property_exists($record, $key)) {
                 $record->{$key} = $value;
             }
         }

@@ -21,16 +21,22 @@ use core_user;
 use stdClass;
 
 /**
- * Records who attended a live session, for how long, and from where.
+ * Records who attended a live session and from where, and in timed mode for how long.
  *
- * Attendance is captured from the embedded meeting client: the browser calls in once
- * when it joins, then every heartbeat interval while the meeting is open, and once
- * more on the way out. Each call carries the request's IP address and user agent, and
- * the accumulated time drives the grade.
+ * Attendance is captured from the embedded meeting client. There are two modes, chosen
+ * per session on the activity settings form:
  *
- * Time is accumulated from heartbeat deltas rather than from a simple
- * (leave - join) subtraction, so a student who closes the tab without a clean leave
- * is credited up to their last heartbeat instead of the whole session.
+ * Present on join (the default) asks one question: did the student turn up? The browser
+ * calls in once when it enters the meeting, the student is marked present there and
+ * then, and no time is measured, accumulated or displayed anywhere.
+ *
+ * Time based keeps the original behaviour: the browser also calls in every heartbeat
+ * interval and once more on the way out, and the accumulated time drives the grade.
+ * Time is accumulated from heartbeat deltas rather than from a simple (leave - join)
+ * subtraction, so a student who closes the tab without a clean leave is credited up to
+ * their last heartbeat instead of the whole session.
+ *
+ * Either way each call carries the request's IP address and user agent.
  *
  * @package    mod_livesession
  * @copyright  2026 Aspire Education and Training
@@ -60,6 +66,32 @@ class attendance {
 
     /** @var int Pro rata against the scheduled duration. */
     const GRADING_PROPORTIONAL = 2;
+
+    /** @var int Turning up is the whole test; no time is measured. */
+    const MODE_PRESENCE = 0;
+
+    /** @var int Accumulated time in the meeting decides status and grade. */
+    const MODE_DURATION = 1;
+
+    /**
+     * Whether this session marks a student present the moment they join.
+     *
+     * @param stdClass $livesession
+     * @return bool
+     */
+    public static function is_presence_mode(stdClass $livesession): bool {
+        return (int) ($livesession->attendancemode ?? self::MODE_PRESENCE) !== self::MODE_DURATION;
+    }
+
+    /**
+     * Whether this session measures how long a student stayed.
+     *
+     * @param stdClass $livesession
+     * @return bool
+     */
+    public static function tracks_duration(stdClass $livesession): bool {
+        return !self::is_presence_mode($livesession);
+    }
 
     /**
      * Open or resume an attendance segment for a user who has just entered the meeting.
@@ -102,8 +134,11 @@ class attendance {
             ];
             $record->id = $DB->insert_record('livesession_attendance', $record);
         } else {
-            // A rejoin. Credit any time since the last heartbeat before restarting the clock.
-            self::accrue($record, $now);
+            // A rejoin. In timed mode, credit any time since the last heartbeat before
+            // restarting the clock; in present-on-join mode there is no clock to restart.
+            if (self::tracks_duration($livesession)) {
+                self::accrue($record, $now);
+            }
             $record->joincount++;
             $record->lastseen = $now;
             if (empty($record->firstjoin)) {
@@ -145,7 +180,9 @@ class attendance {
         }
 
         $identity = self::capture_identity($livesession, $userid);
-        self::accrue($record, $now);
+        if (self::tracks_duration($livesession)) {
+            self::accrue($record, $now);
+        }
         $record->lastseen = $now;
         $record->lastip = $identity['ip'];
         $record->timemodified = $now;
@@ -173,7 +210,9 @@ class attendance {
         }
 
         $identity = self::capture_identity($livesession, $userid);
-        self::accrue($record, $now);
+        if (self::tracks_duration($livesession)) {
+            self::accrue($record, $now);
+        }
         $record->lastseen = $now;
         $record->lastleave = $now;
         $record->lastip = $identity['ip'];
@@ -337,20 +376,7 @@ class attendance {
         $oldgrade = $record->grade;
         $oldstatus = $record->status;
 
-        $required = self::required_seconds($livesession);
-        $duration = (int) $record->duration;
-
-        if ($duration <= 0) {
-            $status = self::STATUS_ABSENT;
-        } else if ($duration >= $required) {
-            $late = !empty($livesession->latethreshold)
-                && $record->firstjoin > ($livesession->starttime + $livesession->latethreshold);
-            $status = $late ? self::STATUS_LATE : self::STATUS_PRESENT;
-        } else {
-            $status = self::STATUS_PARTIAL;
-        }
-
-        $record->status = $status;
+        $record->status = self::derive_status($livesession, $record);
         $record->grade = self::calculate_grade($livesession, $record);
         $record->gradedtime = time();
         $record->timemodified = time();
@@ -369,6 +395,48 @@ class attendance {
     }
 
     /**
+     * Decide what a record's status should be, given the session's attendance mode.
+     *
+     * In present-on-join mode the only question is whether they turned up, so there is
+     * no "partial": a student who joined is present (or late), and one who never did is
+     * absent. In timed mode the accumulated duration is measured against the
+     * requirement, and falling short of it is partial attendance.
+     *
+     * @param stdClass $livesession
+     * @param stdClass $record
+     * @return string one of the STATUS_* constants
+     */
+    protected static function derive_status(stdClass $livesession, stdClass $record): string {
+        if (self::is_presence_mode($livesession)) {
+            return empty($record->firstjoin)
+                ? self::STATUS_ABSENT
+                : self::on_time_status($livesession, $record);
+        }
+
+        $duration = (int) $record->duration;
+        if ($duration <= 0) {
+            return self::STATUS_ABSENT;
+        }
+        if ($duration >= self::required_seconds($livesession)) {
+            return self::on_time_status($livesession, $record);
+        }
+        return self::STATUS_PARTIAL;
+    }
+
+    /**
+     * Whether a student who met the requirement did so having arrived on time.
+     *
+     * @param stdClass $livesession
+     * @param stdClass $record
+     * @return string STATUS_PRESENT or STATUS_LATE
+     */
+    protected static function on_time_status(stdClass $livesession, stdClass $record): string {
+        $late = !empty($livesession->latethreshold)
+            && (int) $record->firstjoin > ((int) $livesession->starttime + (int) $livesession->latethreshold);
+        return $late ? self::STATUS_LATE : self::STATUS_PRESENT;
+    }
+
+    /**
      * Work out the gradebook value for a record.
      *
      * @param stdClass $livesession
@@ -383,6 +451,14 @@ class attendance {
 
         if ($record->status === self::STATUS_EXCUSED) {
             return null;
+        }
+
+        if (self::is_presence_mode($livesession)) {
+            // Nothing is measured, so there is nothing to apportion: a grading method of
+            // proportional collapses into the same all-or-nothing mark as threshold.
+            return in_array($record->status, [self::STATUS_PRESENT, self::STATUS_LATE], true)
+                ? (float) $max
+                : 0.0;
         }
 
         $duration = (int) $record->duration;
@@ -438,7 +514,9 @@ class attendance {
 
         $rows = [];
         $rows[] = [get_string('status', 'mod_livesession'), get_string('status:' . $record->status, 'mod_livesession')];
-        $rows[] = [get_string('attendedfor', 'mod_livesession'), self::format_attended((int) $record->duration)];
+        if (self::tracks_duration($livesession)) {
+            $rows[] = [get_string('attendedfor', 'mod_livesession'), self::format_attended((int) $record->duration)];
+        }
 
         if (!empty($record->firstjoin)) {
             $rows[] = [get_string('firstjoin', 'mod_livesession'), userdate($record->firstjoin)];
@@ -446,7 +524,7 @@ class attendance {
         if (!empty($record->lastleave)) {
             $rows[] = [get_string('lastleave', 'mod_livesession'), userdate($record->lastleave)];
         }
-        if (!empty($record->joincount)) {
+        if (!empty($record->joincount) && self::tracks_duration($livesession)) {
             $rows[] = [get_string('joincount', 'mod_livesession'), (string) $record->joincount];
         }
         if (!empty($record->usernamesnapshot)) {

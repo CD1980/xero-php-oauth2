@@ -29,6 +29,7 @@
  * @return bool
  */
 function xmldb_livesession_upgrade($oldversion) {
+    global $DB;
 
     if ($oldversion < 2026092104) {
         // The Meeting SDK version default moved from 3.13.2 to 6.5.0, because Zoom no
@@ -41,6 +42,47 @@ function xmldb_livesession_upgrade($oldversion) {
         }
 
         upgrade_mod_savepoint(true, 2026092104, 'livesession');
+    }
+
+    if ($oldversion < 2026093000) {
+        $dbman = $DB->get_manager();
+        $table = new xmldb_table('livesession');
+
+        // A session may lend its Zoom meeting to other sessions running at the same time,
+        // so that one instructor hosts a single room that several cohorts join.
+        $field = new xmldb_field('ismaster', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'autorecord');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('mastersessionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'ismaster');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $index = new xmldb_index('mastersessionid', XMLDB_INDEX_NOTUNIQUE, ['mastersessionid']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Attendance is present-on-join from here on. Existing sessions are moved to it
+        // as well rather than left behind on the timed behaviour: it is the site-wide
+        // change that was asked for, and any session that still wants timed attendance
+        // is one dropdown away on the activity settings form.
+        $field = new xmldb_field('attendancemode', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'mastersessionid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Every existing record was graded against a requirement that no longer applies,
+        // so a student who joined but left early is still sitting at "partial". The
+        // recalculation writes to the gradebook, which cannot be done from inside an
+        // upgrade, so it is handed to cron to run the moment the site is whole again.
+        \core\task\manager::queue_adhoc_task(
+            new \mod_livesession\task\refresh_attendance_modes()
+        );
+
+        upgrade_mod_savepoint(true, 2026093000, 'livesession');
     }
 
     return true;

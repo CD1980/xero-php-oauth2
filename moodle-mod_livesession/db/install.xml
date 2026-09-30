@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/livesession/db" VERSION="20260921" COMMENT="Database schema for mod_livesession."
+<XMLDB PATH="mod/livesession/db" VERSION="20260930" COMMENT="Database schema for mod_livesession."
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -26,6 +26,9 @@
         <FIELD NAME="joinbeforehost" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
         <FIELD NAME="muteonentry" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
         <FIELD NAME="autorecord" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="none" SEQUENCE="false" COMMENT="none, local or cloud."/>
+        <FIELD NAME="ismaster" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Other sessions may share this session's Zoom meeting."/>
+        <FIELD NAME="mastersessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Share the meeting belonging to this other session instead of creating one; 0 means this session has its own."/>
+        <FIELD NAME="attendancemode" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 present on join, 1 time based."/>
         <FIELD NAME="gradingmethod" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="0 none, 1 threshold, 2 proportional."/>
         <FIELD NAME="requiredpercent" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="80" SEQUENCE="false"/>
         <FIELD NAME="requiredminutes" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Absolute minutes required; 0 means use requiredpercent."/>
@@ -47,6 +50,7 @@
       <INDEXES>
         <INDEX NAME="meetingid" UNIQUE="false" FIELDS="meetingid"/>
         <INDEX NAME="starttime" UNIQUE="false" FIELDS="starttime"/>
+        <INDEX NAME="mastersessionid" UNIQUE="false" FIELDS="mastersessionid"/>
       </INDEXES>
     </TABLE>
     <TABLE NAME="livesession_attendance" COMMENT="Aggregated attendance record, one row per user per session.">

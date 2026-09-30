@@ -23,8 +23,10 @@ use core_external\external_value;
 use mod_livesession\local\attendance;
 use mod_livesession\local\meeting_manager;
 use mod_livesession\local\zoom\signature;
+use context_module;
 use moodle_exception;
 use moodle_url;
+use stdClass;
 
 /**
  * Hands the browser a short-lived Zoom Meeting SDK signature and opens an attendance record.
@@ -75,7 +77,7 @@ class join_session extends external_api {
             throw new moodle_exception('error:outsidejoinwindow', 'mod_livesession');
         }
 
-        $role = $ishost ? signature::ROLE_HOST : signature::ROLE_ATTENDEE;
+        $role = self::resolve_role($livesession, $ishost);
         $token = signature::create((string) $livesession->meetingid, $role);
 
         attendance::open_segment($livesession, (int) $USER->id);
@@ -98,11 +100,46 @@ class join_session extends external_api {
             'useremail'         => $ishost ? (string) $USER->email : '',
             'role'              => $role,
             'heartbeatinterval' => attendance::heartbeat_interval(),
+            'trackduration'     => attendance::tracks_duration($livesession) ? 1 : 0,
             'leaveurl'          => (new moodle_url(
                 '/mod/livesession/view.php',
                 ['id' => $cm->id, 'left' => 1]
             ))->out(false),
         ];
+    }
+
+    /**
+     * The Meeting SDK role this user should hold in this meeting.
+     *
+     * Hosting is a power over the room, and in a shared room the room is not this
+     * session's to give away: an SDK host can mute anyone, admit anyone and end the
+     * meeting for every cohort in it. So a teacher of a session that borrows a room is
+     * only made host if they could host the session that owns it; otherwise they join
+     * as an attendee, with every other teaching privilege they hold in their own course
+     * untouched.
+     *
+     * @param stdClass $livesession
+     * @param bool $ishost whether the user may host this session
+     * @return int signature::ROLE_HOST or signature::ROLE_ATTENDEE
+     */
+    protected static function resolve_role(stdClass $livesession, bool $ishost): int {
+        if (!$ishost) {
+            return signature::ROLE_ATTENDEE;
+        }
+
+        $master = meeting_manager::get_master($livesession);
+        if (!$master) {
+            return signature::ROLE_HOST;
+        }
+
+        $mastercm = get_coursemodule_from_instance('livesession', $master->id, 0, false, IGNORE_MISSING);
+        if (!$mastercm) {
+            return signature::ROLE_ATTENDEE;
+        }
+
+        return has_capability('mod/livesession:host', context_module::instance($mastercm->id))
+            ? signature::ROLE_HOST
+            : signature::ROLE_ATTENDEE;
     }
 
     /**
@@ -123,6 +160,7 @@ class join_session extends external_api {
             'useremail'         => new external_value(PARAM_RAW, 'Email, sent only for hosts'),
             'role'              => new external_value(PARAM_INT, '0 attendee, 1 host'),
             'heartbeatinterval' => new external_value(PARAM_INT, 'Seconds between heartbeats'),
+            'trackduration'     => new external_value(PARAM_INT, '1 when the browser should keep sending heartbeats'),
             'leaveurl'          => new external_value(PARAM_URL, 'Where the SDK returns the user on leave'),
         ]);
     }

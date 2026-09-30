@@ -5,6 +5,57 @@ All notable changes to this plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-30
+
+### Added
+
+- **Attendance modes.** Each session now chooses between *Present on join* and
+  *Time based* on its settings form. Present on join marks a student attended the
+  moment they enter the meeting and measures nothing: no check-in traffic, no
+  running counter, no duration in the report, the gradebook feedback or the
+  activity completion rule. Time based is the previous behaviour, unchanged.
+- **Shared rooms.** A session can be ticked as shareable, and other sessions
+  pointed at it. They stop creating Zoom meetings of their own and take the
+  owner's meeting number, passcode, join URL and host, so every cohort running at
+  that time lands in front of the one instructor. Attendance, grades and
+  completion stay separate per activity — only the room is shared.
+
+### Changed
+
+- **Present on join is the default**, for new sessions and for existing ones. The
+  upgrade queues a task that recalculates every stored status and grade against
+  the new mode, so a student who joined and left early stops sitting at *partial*.
+  Teacher corrections are left alone. Any session that still wants timed
+  attendance is one dropdown away on its settings form.
+- The two time-based scheduled tasks — closing stale records and reconciling
+  against Zoom's participant report — now skip present-on-join sessions, which
+  have nothing for them to do.
+- The notice shown before joining describes what is actually kept, rather than
+  promising a student their time is being measured in a session that measures
+  nothing.
+- The attendance report, the course index, the gradebook feedback and the
+  teacher's correction form all drop their duration columns and fields in
+  present-on-join mode. A correction made there leaves any stored duration
+  untouched rather than zeroing it.
+
+### Security
+
+- Someone who can host a session that borrows a room is given the Zoom **host**
+  role only if they could also host the session that owns it; otherwise they join
+  as an attendee. An SDK host can mute anyone, admit anyone and end the meeting
+  for every cohort in the room, which is not one cohort's teacher's to do.
+
+### Notes
+
+- Deleting a session that was sharing a room never deletes the room: the meeting
+  id it holds is a copy of the owner's. Deleting the owner releases every session
+  sharing it and flags them, rather than quietly creating a Zoom meeting per
+  orphaned cohort.
+- Backups carry the attendance mode and the "shareable" flag, but not the link to
+  another session's room. That link names an activity outside the backup, and an
+  id restored into a different course or site would point at whatever activity
+  happened to hold it.
+
 ## [1.1.1] - 2026-09-21
 
 ### Changed

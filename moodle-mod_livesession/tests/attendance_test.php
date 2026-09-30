@@ -60,9 +60,14 @@ final class attendance_test extends \advanced_testcase {
     protected function create_session(array $overrides = []): \stdClass {
         global $DB;
 
+        // Nearly everything in this class exercises the timed pipeline, so that is what
+        // is built unless a test says otherwise. The plugin's own default is present on
+        // join; the tests for that mode ask for it explicitly.
         $instance = $this->getDataGenerator()->create_module(
             'livesession',
-            ['course' => $this->course->id] + $overrides
+            ['course' => $this->course->id]
+                + $overrides
+                + ['attendancemode' => attendance::MODE_DURATION]
         );
 
         return $DB->get_record('livesession', ['id' => $instance->id], '*', MUST_EXIST);
@@ -401,5 +406,107 @@ final class attendance_test extends \advanced_testcase {
 
         $this->assertEquals(10.0, (float) $item->grades[$this->student->id]->grade);
         $this->assertStringContainsString('203.0.113.45', $item->grades[$this->student->id]->str_feedback);
+    }
+
+    /**
+     * In present-on-join mode arriving is the whole test.
+     *
+     * @return void
+     */
+    public function test_presence_mode_marks_present_on_join(): void {
+        $session = $this->create_session([
+            'attendancemode'  => attendance::MODE_PRESENCE,
+            'duration'        => HOURSECS,
+            'requiredpercent' => 90,
+            'starttime'       => time(),
+        ]);
+        $this->setUser($this->student);
+
+        $record = attendance::open_segment($session, (int) $this->student->id);
+
+        $this->assertEquals(attendance::STATUS_PRESENT, $record->status);
+        $this->assertEquals(0, $record->duration);
+    }
+
+    /**
+     * No time is accumulated in present-on-join mode, however long the student stays.
+     *
+     * @return void
+     */
+    public function test_presence_mode_never_accrues_time(): void {
+        $session = $this->create_session(['attendancemode' => attendance::MODE_PRESENCE]);
+        $this->setUser($this->student);
+
+        $record = attendance::open_segment($session, (int) $this->student->id);
+
+        $this->rewind_lastseen($record, 10 * MINSECS);
+        $record = attendance::heartbeat($session, (int) $this->student->id);
+        $this->assertEquals(0, $record->duration);
+
+        $this->rewind_lastseen($record, 10 * MINSECS);
+        $record = attendance::close_segment($session, (int) $this->student->id);
+        $this->assertEquals(0, $record->duration);
+        $this->assertEquals(attendance::STATUS_PRESENT, $record->status);
+    }
+
+    /**
+     * Arriving late is still late, because that is a statement about when, not how long.
+     *
+     * @return void
+     */
+    public function test_presence_mode_still_flags_late_arrivals(): void {
+        $session = $this->create_session([
+            'attendancemode' => attendance::MODE_PRESENCE,
+            'latethreshold'  => 5 * MINSECS,
+            'starttime'      => time() - 20 * MINSECS,
+        ]);
+        $this->setUser($this->student);
+
+        $record = attendance::open_segment($session, (int) $this->student->id);
+
+        $this->assertEquals(attendance::STATUS_LATE, $record->status);
+    }
+
+    /**
+     * A student who never joined is absent, and one who did earns the whole mark.
+     *
+     * @return void
+     */
+    public function test_presence_mode_grading_is_all_or_nothing(): void {
+        $session = $this->create_session([
+            'attendancemode'  => attendance::MODE_PRESENCE,
+            'gradingmethod'   => attendance::GRADING_PROPORTIONAL,
+            'grade'           => 20,
+            'duration'        => HOURSECS,
+        ]);
+
+        // Proportional grading has no time to scale, so presence pays in full.
+        $present = (object) ['duration' => 0, 'status' => attendance::STATUS_PRESENT];
+        $this->assertEquals(20.0, attendance::calculate_grade($session, $present));
+
+        $late = (object) ['duration' => 0, 'status' => attendance::STATUS_LATE];
+        $this->assertEquals(20.0, attendance::calculate_grade($session, $late));
+
+        $absent = (object) ['duration' => 0, 'status' => attendance::STATUS_ABSENT];
+        $this->assertEquals(0.0, attendance::calculate_grade($session, $absent));
+    }
+
+    /**
+     * Feedback in present-on-join mode does not claim to report a duration.
+     *
+     * @return void
+     */
+    public function test_presence_mode_feedback_omits_duration(): void {
+        $session = $this->create_session(['attendancemode' => attendance::MODE_PRESENCE]);
+        $this->setUser($this->student);
+        $record = attendance::open_segment($session, (int) $this->student->id);
+
+        $feedback = attendance::build_feedback($session, $record);
+
+        $this->assertStringContainsString('203.0.113.45', $feedback);
+        $this->assertStringNotContainsString(
+            get_string('attendedfor', 'mod_livesession'),
+            $feedback
+        );
     }
 }

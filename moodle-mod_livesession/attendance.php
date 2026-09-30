@@ -70,6 +70,9 @@ foreach ($records as $record) {
 
 $required = attendance::required_seconds($livesession);
 $graded = (int) $livesession->grade > 0 && (int) $livesession->gradingmethod !== attendance::GRADING_NONE;
+// Present-on-join sessions measure no time, so every column and summary line about how
+// long someone stayed is left out rather than shown as a row of zeroes.
+$showduration = attendance::tracks_duration($livesession);
 
 // CSV export.
 if ($download === 'csv') {
@@ -84,17 +87,19 @@ if ($download === 'csv') {
         get_string('status', 'mod_livesession'),
         get_string('firstjoin', 'mod_livesession'),
         get_string('lastleave', 'mod_livesession'),
-        get_string('attendedfor', 'mod_livesession'),
-        get_string('joincount', 'mod_livesession'),
-        get_string('lastlogin', 'mod_livesession'),
     ];
+    if ($showduration) {
+        $header[] = get_string('attendedfor', 'mod_livesession');
+        $header[] = get_string('joincount', 'mod_livesession');
+    }
+    $header[] = get_string('lastlogin', 'mod_livesession');
     if ($showip) {
         $header[] = get_string('firstip', 'mod_livesession');
         $header[] = get_string('lastip', 'mod_livesession');
     }
     $header[] = get_string('useragent', 'mod_livesession');
     if ($graded) {
-        $header[] = get_string('grade');
+        $header[] = get_string('grade', 'core_grades');
     }
     $header[] = get_string('overridden', 'mod_livesession');
     $csv->add_data($header);
@@ -108,10 +113,12 @@ if ($download === 'csv') {
             get_string('status:' . ($record->status ?? attendance::STATUS_ABSENT), 'mod_livesession'),
             ($record && $record->firstjoin) ? userdate($record->firstjoin) : '',
             ($record && $record->lastleave) ? userdate($record->lastleave) : '',
-            $record ? attendance::format_attended((int) $record->duration) : '',
-            $record ? (int) $record->joincount : 0,
-            ($record && $record->lastlogin) ? userdate($record->lastlogin) : '',
         ];
+        if ($showduration) {
+            $row[] = $record ? attendance::format_attended((int) $record->duration) : '';
+            $row[] = $record ? (int) $record->joincount : 0;
+        }
+        $row[] = ($record && $record->lastlogin) ? userdate($record->lastlogin) : '';
         if ($showip) {
             $row[] = $record->firstip ?? '';
             $row[] = $record->lastip ?? '';
@@ -139,9 +146,11 @@ $summary = new html_table();
 $summary->attributes['class'] = 'generaltable';
 $summary->data = [
     [get_string('starts', 'mod_livesession'), userdate($livesession->starttime)],
-    [get_string('attendancerequirement', 'mod_livesession'), format_time($required)],
-    [get_string('participants'), count($users)],
 ];
+if ($showduration) {
+    $summary->data[] = [get_string('attendancerequirement', 'mod_livesession'), format_time($required)];
+}
+$summary->data[] = [get_string('participants'), count($users)];
 echo html_writer::table($summary);
 
 if ($showip) {
@@ -154,15 +163,17 @@ $table->head = [
     get_string('fullname'),
     get_string('status', 'mod_livesession'),
     get_string('firstjoin', 'mod_livesession'),
-    get_string('attendedfor', 'mod_livesession'),
-    get_string('joincount', 'mod_livesession'),
 ];
+if ($showduration) {
+    $table->head[] = get_string('attendedfor', 'mod_livesession');
+    $table->head[] = get_string('joincount', 'mod_livesession');
+}
 if ($showip) {
     $table->head[] = get_string('ipaddress', 'mod_livesession');
 }
 $table->head[] = get_string('useragent', 'mod_livesession');
 if ($graded) {
-    $table->head[] = get_string('grade');
+    $table->head[] = get_string('grade', 'core_grades');
 }
 if ($canmanage) {
     $table->head[] = get_string('actions');
@@ -189,9 +200,12 @@ foreach ($users as $user) {
         ), fullname($user)),
         $statuscell,
         ($record && $record->firstjoin) ? userdate($record->firstjoin) : '-',
-        $record ? attendance::format_attended((int) $record->duration) : '-',
-        $record ? (int) $record->joincount : 0,
     ];
+
+    if ($showduration) {
+        $row[] = $record ? attendance::format_attended((int) $record->duration) : '-';
+        $row[] = $record ? (int) $record->joincount : 0;
+    }
 
     if ($showip) {
         $ip = '-';

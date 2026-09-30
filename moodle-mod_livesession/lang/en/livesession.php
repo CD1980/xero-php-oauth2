@@ -65,6 +65,32 @@ $string['autorecord:none'] = 'Do not record';
 $string['autorecord:local'] = 'Record to the host computer';
 $string['autorecord:cloud'] = 'Record to the Zoom cloud';
 $string['attendanceandgrading'] = 'Attendance and grading';
+$string['attendancemode'] = 'What counts as attending';
+$string['attendancemode:presence'] = 'Present on join - turning up is enough';
+$string['attendancemode:duration'] = 'Time based - measure how long they stay';
+$string['attendancemode_help'] = 'Present on join asks one question: did the student turn up? They are marked present the moment they enter the meeting, and no time is measured, stored or shown anywhere - not in the report, not in the gradebook feedback, not on their own page. A graded session is then all or nothing: present earns the full mark, absent earns zero.
+
+Time based measures how long each student stays and marks them against a requirement, so a student who leaves early can be recorded as partially present or graded proportionally.
+
+Switching an existing session to present on join does not erase time already recorded; it stops the time being measured, used or displayed from that point on.';
+
+$string['ismaster'] = 'Let other sessions share this meeting';
+$string['ismaster_help'] = 'Tick this to make the session a shared room. Other sessions, in this course or any other, can then be pointed at it instead of creating a Zoom meeting of their own, so that one instructor hosting this one meeting is available to every cohort running at the same time.
+
+Each sharing session keeps its own schedule, join window, attendance register and grades. Only the room is shared.
+
+This cannot be switched off while other sessions are still sharing the room. Point them elsewhere first.';
+$string['mastersessionid'] = 'Use another session\'s meeting';
+$string['mastersessionid_help'] = 'Join students into a room owned by another session rather than creating a separate Zoom meeting for this one. Use it when several sessions run at the same time and one instructor should be available to all of them.
+
+Attendance is still recorded separately for this session, against the students in this course, and this session\'s own start time and join window still decide when they may enter. The meeting options - host, waiting room, recording - belong to the session that owns the room, so they are hidden here.
+
+Only sessions ticked as shareable, in courses you could add a session to, appear in this list. If this session already had a Zoom meeting of its own, that meeting is deleted when you point it at a shared room, because nothing would reference it again.';
+$string['nomastersession'] = 'No - create this session\'s own meeting';
+$string['mastersessionlabel'] = '{$a->course}: {$a->name} ({$a->starts})';
+$string['sharedmeetingfrom'] = 'Students join the room owned by "{$a}".';
+$string['sharedmeetingmaster'] = 'This session owns a shared room. {$a} other session(s) join students into it.';
+
 $string['gradingmethod'] = 'How attendance becomes a grade';
 $string['gradingmethod_help'] = 'Not graded: attendance is recorded but no mark is written.
 
@@ -88,6 +114,7 @@ $string['completionattendance'] = 'Minutes of attendance required';
 $string['completionattendancegroup'] = 'Require attendance';
 $string['completionattendancegroup_help'] = 'The activity is marked complete once the student has attended for at least this many minutes.';
 $string['completiondetail:attendance'] = 'Attend for at least {$a} minutes';
+$string['completiondetail:joined'] = 'Join the session';
 
 // View page.
 $string['starts'] = 'Starts';
@@ -102,6 +129,8 @@ $string['sessionclosed'] = 'This session has finished.';
 $string['youleft'] = 'You have left the session. Your attendance has been recorded.';
 $string['attendancenotice'] = 'Your attendance in this session is recorded automatically while you are in the meeting.';
 $string['attendancenoticeip'] = 'Your attendance in this session is recorded automatically while you are in the meeting. The time you attend, your sign-in details and the IP address you connect from are stored against your record and shown to your teacher.';
+$string['attendancenoticepresence'] = 'Joining this session marks you as attended. You do not need to stay for a set amount of time.';
+$string['attendancenoticepresenceip'] = 'Joining this session marks you as attended. Your sign-in details and the IP address you connect from are stored against your record and shown to your teacher.';
 $string['yourattendance'] = 'Your attendance';
 $string['viewattendance'] = 'View attendance';
 $string['nosessions'] = 'There are no live sessions in this course.';
@@ -237,6 +266,12 @@ $string['error:scalesnotsupported'] = 'Attendance produces a numeric mark, so sc
 $string['error:percentrange'] = 'Enter a percentage between 0 and 100.';
 $string['error:negativeminutes'] = 'Enter zero or more minutes.';
 $string['error:requiredexceedsduration'] = 'The attendance requirement cannot be longer than the session itself.';
+$string['error:proportionalneedstime'] = 'Proportional marking shares the grade out across the time attended, and "Present on join" does not measure any time. Choose all or nothing, or switch the session to time based attendance.';
+$string['error:masterunavailable'] = 'That session is no longer available as a shared room. Choose another, or let this session create its own meeting.';
+$string['error:masterhaschildren'] = 'This room cannot be withdrawn: {$a} other session(s) are still sharing it. Point them elsewhere first.';
+$string['error:mastermissing'] = 'The session this one was sharing a meeting with no longer exists. Edit this session and either choose another shared room or let it create its own meeting.';
+$string['error:masternotready'] = 'The session sharing its meeting with this one has no Zoom meeting yet. Once its own meeting is created, this session will pick it up the next time it is saved.';
+$string['error:masterdeleted'] = 'The session that owned this shared meeting has been deleted, so this session no longer has a room. Edit it to choose another shared room or create its own meeting.';
 
 // Privacy API.
 $string['privacy:metadata:attendance'] = 'The attendance record kept for each participant in a live session.';

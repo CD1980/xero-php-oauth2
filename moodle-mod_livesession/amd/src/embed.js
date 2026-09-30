@@ -18,9 +18,10 @@
  *
  * The meeting runs in the Zoom Meeting SDK's Component View, which renders into a div
  * on this page - the student never leaves Moodle and the Zoom desktop app is never
- * invoked. While the meeting is open the module calls home on a fixed interval so the
- * server can accumulate attended time; the server, not the browser, decides what that
- * time is worth.
+ * invoked. Where the session measures attended time, the module also calls home on a
+ * fixed interval while the meeting is open so the server can accumulate it; the server,
+ * not the browser, decides what that time is worth. Where the session only asks whether
+ * the student turned up, joining is the whole report and no heartbeat is sent.
  *
  * @module     mod_livesession/embed
  * @copyright  2026 Aspire Education and Training
@@ -602,6 +603,12 @@ const startMeeting = async(root, statusEl, counterEl, joinButton, frame, stage) 
     }
 
     setStatus(statusEl, await getString('attendancerecording', 'mod_livesession'), 'success');
+
+    // In present-on-join mode the server marked the student present when it handed back
+    // this configuration, so there is nothing left to report and nothing to count.
+    if (!parseInt(config.trackduration, 10)) {
+        return;
+    }
 
     const interval = Math.max(15, parseInt(config.heartbeatinterval, 10) || 60) * 1000;
     heartbeatTimer = window.setInterval(() => sendHeartbeat(counterEl), interval);

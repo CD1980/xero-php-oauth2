@@ -55,7 +55,12 @@ $PAGE->set_heading(format_string($course->fullname));
 
 $record = attendance::get_record((int) $livesession->id, $userid);
 
-$form = new override_form($pageurl, ['fullname' => fullname($user)]);
+$showduration = attendance::tracks_duration($livesession);
+
+$form = new override_form($pageurl, [
+    'fullname'     => fullname($user),
+    'showduration' => $showduration,
+]);
 $form->set_data([
     'id'              => $cm->id,
     'userid'          => $userid,
@@ -73,11 +78,13 @@ if ($data = $form->get_data()) {
     if (!empty($data->clearoverride)) {
         attendance::clear_override($livesession, $userid);
     } else {
+        // Without the minutes field there is no replacement duration to apply, so the
+        // stored one is left exactly as it was rather than being zeroed.
         attendance::override(
             $livesession,
             $userid,
             $data->status,
-            (int) $data->durationminutes,
+            $showduration ? (int) $data->durationminutes : null,
             (string) $data->remarks
         );
     }

@@ -86,6 +86,12 @@ class restore_livesession_activity_structure_step extends restore_activity_struc
         $data->syncerror = null;
         $data->lastreconciled = 0;
 
+        // The room this session borrowed belongs to an activity that is not in this
+        // backup, so the restored copy starts out owning its own meeting. Set it here
+        // rather than trusting the column default, because the link is the one thing
+        // that must not survive a restore into a different course or site.
+        $data->mastersessionid = 0;
+
         $newitemid = $DB->insert_record('livesession', $data);
         $this->apply_activity_instance($newitemid);
         $this->set_mapping('livesession', $oldid, $newitemid);

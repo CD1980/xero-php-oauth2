@@ -90,6 +90,10 @@ function livesession_update_instance($data, $mform = null) {
     $data->id = $data->instance;
     $data->timemodified = time();
     $data->duration = (int) $data->duration;
+
+    $previous = $DB->get_record('livesession', ['id' => $data->id], '*', MUST_EXIST);
+    livesession_handle_room_change($previous, $data);
+
     $DB->update_record('livesession', $data);
 
     $livesession = $DB->get_record('livesession', ['id' => $data->id], '*', MUST_EXIST);
@@ -100,6 +104,39 @@ function livesession_update_instance($data, $mform = null) {
     livesession_recalculate_all($livesession);
 
     return true;
+}
+
+/**
+ * Deal with a session moving between owning a room and borrowing one.
+ *
+ * The meeting details on a borrowing session are a copy of the master's. That copy has
+ * to be cleared when the session stops borrowing, or the next sync would take the id at
+ * face value and start editing the master's room as though it were its own - renaming
+ * it, moving its start time, and dragging every other cohort in it along.
+ *
+ * Going the other way, the session's own meeting is about to become unreachable: no
+ * activity will reference it again. It is deleted, for the same reason deleting the
+ * activity deletes its meeting.
+ *
+ * @param stdClass $previous the stored record, before the form data is applied
+ * @param stdClass $data the incoming form data, modified in place
+ * @return void
+ */
+function livesession_handle_room_change($previous, $data) {
+    $wasborrowing = !empty($previous->mastersessionid);
+    $isborrowing = !empty($data->mastersessionid);
+
+    if ($wasborrowing && !$isborrowing) {
+        $data->meetingid = null;
+        $data->meetinguuid = null;
+        $data->passcode = null;
+        $data->joinurl = null;
+        return;
+    }
+
+    if (!$wasborrowing && $isborrowing && !empty($previous->meetingid)) {
+        meeting_manager::delete($previous);
+    }
 }
 
 /**
@@ -116,6 +153,9 @@ function livesession_delete_instance($id) {
         return false;
     }
 
+    // Any session sharing this one's room loses it, so unlink them first and leave a
+    // reason behind; otherwise they would keep pointing at a meeting that is gone.
+    meeting_manager::unlink_children($livesession);
     meeting_manager::delete($livesession);
 
     $DB->delete_records('livesession_log', ['livesessionid' => $id]);
@@ -354,9 +394,13 @@ function livesession_user_outline($course, $user, $mod, $livesession) {
         return null;
     }
 
+    $info = get_string('status:' . $record->status, 'mod_livesession');
+    if (attendance::tracks_duration($livesession)) {
+        $info .= ' (' . attendance::format_attended((int) $record->duration) . ')';
+    }
+
     return (object) [
-        'info' => get_string('status:' . $record->status, 'mod_livesession')
-            . ' (' . attendance::format_attended((int) $record->duration) . ')',
+        'info' => $info,
         'time' => (int) $record->timemodified,
     ];
 }
@@ -413,7 +457,7 @@ function livesession_extend_settings_navigation($settings, $node) {
 function livesession_get_coursemodule_info($coursemodule) {
     global $DB;
 
-    $fields = 'id, name, intro, introformat, starttime, duration, completionattendance';
+    $fields = 'id, name, intro, introformat, starttime, duration, completionattendance, attendancemode';
     $livesession = $DB->get_record('livesession', ['id' => $coursemodule->instance], $fields);
     if (!$livesession) {
         return null;
@@ -433,6 +477,7 @@ function livesession_get_coursemodule_info($coursemodule) {
 
     $info->customdata['starttime'] = (int) $livesession->starttime;
     $info->customdata['duration'] = (int) $livesession->duration;
+    $info->customdata['attendancemode'] = (int) $livesession->attendancemode;
 
     return $info;
 }

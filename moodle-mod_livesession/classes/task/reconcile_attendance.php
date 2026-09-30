@@ -64,14 +64,19 @@ class reconcile_attendance extends scheduled_task {
         }
 
         $now = time();
+        // Zoom's participant report is a source of durations, so it has nothing to add to
+        // a present-on-join session: Moodle already saw the student enter, which is the
+        // whole of what that mode records.
         $sql = "SELECT *
                   FROM {livesession}
                  WHERE meetingid IS NOT NULL
                        AND meetingid <> ''
+                       AND attendancemode = :timed
                        AND (starttime + duration) < :cutoff
                        AND (starttime + duration) > :lookback
                        AND lastreconciled < (starttime + duration)";
         $sessions = $DB->get_records_sql($sql, [
+            'timed'    => attendance::MODE_DURATION,
             'cutoff'   => $now - self::SETTLE,
             'lookback' => $now - self::LOOKBACK,
         ]);

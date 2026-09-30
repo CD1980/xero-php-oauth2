@@ -42,10 +42,15 @@ class backup_livesession_activity_structure_step extends backup_activity_structu
             'name', 'intro', 'introformat', 'starttime', 'duration', 'sessiontimezone',
             'joinwindowbefore', 'joinwindowafter', 'hostuserid', 'zoomhostid', 'meetingid',
             'meetinguuid', 'passcode', 'joinurl', 'waitingroom', 'joinbeforehost',
-            'muteonentry', 'autorecord', 'gradingmethod', 'requiredpercent', 'requiredminutes',
-            'latethreshold', 'recordip', 'ipinfeedback', 'grade', 'completionattendance',
-            'syncstatus', 'timecreated', 'timemodified',
+            'muteonentry', 'autorecord', 'ismaster', 'attendancemode', 'gradingmethod',
+            'requiredpercent', 'requiredminutes', 'latethreshold', 'recordip', 'ipinfeedback',
+            'grade', 'completionattendance', 'syncstatus', 'timecreated', 'timemodified',
         ]);
+
+        // mastersessionid is deliberately left out. It names another activity, and an id
+        // carried into a different site or course points at whatever activity happens to
+        // hold it there - a session quietly sharing a stranger's room. A restored session
+        // comes back owning its own meeting, which the teacher can re-point in one edit.
 
         $attendances = new backup_nested_element('attendances');
         $attendance = new backup_nested_element('attendance', ['id'], [

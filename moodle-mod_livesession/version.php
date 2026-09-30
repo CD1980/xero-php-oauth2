@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_livesession';
-$plugin->version   = 2026092111;
+$plugin->version   = 2026093000;
 $plugin->requires  = 2023100900; // Moodle 4.3.
 $plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v1.1.1';
+$plugin->release   = 'v1.2.0';
 $plugin->cron      = 0;

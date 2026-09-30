@@ -73,10 +73,14 @@ foreach ($instances as $instance) {
     );
 
     $record = attendance::get_record((int) $instance->id, (int) $USER->id);
-    $mine = $record
-        ? get_string('status:' . $record->status, 'mod_livesession')
-            . ' (' . attendance::format_attended((int) $record->duration) . ')'
-        : get_string('status:absent', 'mod_livesession');
+    if (!$record) {
+        $mine = get_string('status:absent', 'mod_livesession');
+    } else {
+        $mine = get_string('status:' . $record->status, 'mod_livesession');
+        if (attendance::tracks_duration($instance)) {
+            $mine .= ' (' . attendance::format_attended((int) $record->duration) . ')';
+        }
+    }
 
     $table->data[] = [
         $link,

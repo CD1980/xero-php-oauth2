@@ -51,13 +51,21 @@ class close_stale_segments extends scheduled_task {
         $timeout = attendance::stale_timeout();
         $cutoff = time() - $timeout;
 
+        // Only timed sessions have a segment to close. In present-on-join mode nothing
+        // is accruing, so an open-looking row costs the student nothing and there is no
+        // reason to sweep it.
         $sql = "SELECT a.*
                   FROM {livesession_attendance} a
+                  JOIN {livesession} s ON s.id = a.livesessionid
                  WHERE a.lastseen > 0
                        AND a.lastseen < :cutoff
                        AND a.lastleave < a.lastseen
-                       AND a.overridden = 0";
-        $records = $DB->get_records_sql($sql, ['cutoff' => $cutoff]);
+                       AND a.overridden = 0
+                       AND s.attendancemode = :timed";
+        $records = $DB->get_records_sql($sql, [
+            'cutoff' => $cutoff,
+            'timed'  => attendance::MODE_DURATION,
+        ]);
         if (!$records) {
             return;
         }
