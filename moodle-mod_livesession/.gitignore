@@ -1,0 +1,15 @@
+# Editor and OS noise
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# moodle-plugin-ci / local tooling
+/vendor/
+/node_modules/
+/moodle/
+.phpunit.result.cache
+
+# Built plugin archives. These are generated from this directory for installing
+# on a site, so tracking one would just leave a stale copy of the source beside it.
+/mod_livesession_*.zip
