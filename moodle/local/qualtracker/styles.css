@@ -1,0 +1,102 @@
+.local-qualtracker .qt-stat,
+.local-qualtracker .qt-count {
+    margin-right: 1.5rem;
+    white-space: nowrap;
+}
+
+.local-qualtracker .qt-num {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.local-qualtracker .qt-completed .qt-num {
+    color: #1e7e34;
+}
+
+.local-qualtracker .qt-working .qt-num {
+    color: #b06d00;
+}
+
+.local-qualtracker-program > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.local-qualtracker-program > summary::-webkit-details-marker {
+    display: none;
+}
+
+.local-qualtracker-program > summary .qt-title::before {
+    content: "\25B8";
+    display: inline-block;
+    margin-right: .5rem;
+    transition: transform .15s;
+}
+
+.local-qualtracker-program[open] > summary .qt-title::before {
+    transform: rotate(90deg);
+}
+
+.local-qualtracker .qt-bar {
+    display: block;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.local-qualtracker .qt-bar > span {
+    display: block;
+    height: 100%;
+    background: #28a745;
+}
+
+.local-qualtracker-grid th.qt-unit {
+    white-space: nowrap;
+    font-size: .8rem;
+}
+
+.local-qualtracker-grid .qt-progress {
+    min-width: 8rem;
+}
+
+.local-qualtracker-grid .qt-progress .progress {
+    height: .5rem;
+}
+
+.local-qualtracker .qt-cell {
+    text-align: center;
+    min-width: 3rem;
+    font-size: .85rem;
+}
+
+.local-qualtracker-grid .qt-cell {
+    vertical-align: middle;
+}
+
+.local-qualtracker .qt-complete {
+    background: #d4edda;
+    color: #155724;
+    font-weight: bold;
+}
+
+.local-qualtracker .qt-inprogress {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.local-qualtracker .qt-notstarted {
+    background: #f1f3f5;
+    color: #6c757d;
+}
+
+.local-qualtracker .qt-notenrolled {
+    background: repeating-linear-gradient(45deg, #fff, #fff 4px, #f1f3f5 4px, #f1f3f5 8px);
+}
+
+.local-qualtracker .qt-legend .qt-cell {
+    display: inline-block;
+    padding: 0 .4rem;
+    margin: 0 .25rem 0 .75rem;
+    border: 1px solid #dee2e6;
+}

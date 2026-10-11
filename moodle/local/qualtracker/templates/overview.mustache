@@ -1,0 +1,135 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_qualtracker/overview
+
+    Every qualification / funded program with summary counts, expandable to a per-student unit progress grid.
+
+    Example context (json):
+    {
+        "hasprograms": true,
+        "programcount": 1,
+        "totals": {"enrolled": 2, "completed": 1, "working": 1},
+        "programs": [{
+            "id": 5, "fullname": "Certificate II in Security Operations", "shortname": "CPP20218",
+            "url": "#", "participantsurl": "#", "unitcount": 2, "enrolled": 2, "completed": 1,
+            "inprogress": 1, "notstarted": 0, "working": 1, "completedpercent": 50, "open": true,
+            "hasunits": true, "hasstudents": true,
+            "units": [{"shortname": "U1", "fullname": "Unit one", "url": "#", "reporturl": "#"},
+                      {"shortname": "U2", "fullname": "Unit two", "url": "#", "reporturl": "#"}],
+            "students": [{"id": 3, "fullname": "Sam Student", "email": "sam@example.com", "profileurl": "#", "searchkey": "sam student sam@example.com",
+                "status": "inprogress", "statuslabel": "In progress", "statusclass": "badge-warning",
+                "unitscomplete": 1, "unitstotal": 2, "percent": 70,
+                "cells": [{"status": "complete", "text": "✓", "title": "Unit one: Completed"},
+                          {"status": "inprogress", "text": "40%", "title": "Unit two: In progress (40%)"}]}]
+        }]
+    }
+}}
+<div class="local-qualtracker">
+    {{#settingsurl}}
+        <p class="text-right"><a href="{{settingsurl}}">{{#str}}configure, local_qualtracker{{/str}}</a></p>
+    {{/settingsurl}}
+
+    {{^hasprograms}}
+        {{#str}}noprograms, local_qualtracker{{/str}}
+    {{/hasprograms}}
+
+    {{#hasprograms}}
+        <div class="local-qualtracker-totals d-flex flex-wrap mb-3">
+            <div class="qt-stat"><span class="qt-num">{{programcount}}</span> {{#str}}programs, local_qualtracker{{/str}}</div>
+            <div class="qt-stat"><span class="qt-num">{{totals.enrolled}}</span> {{#str}}enrolled, local_qualtracker{{/str}}</div>
+            <div class="qt-stat qt-completed"><span class="qt-num">{{totals.completed}}</span> {{#str}}completed, local_qualtracker{{/str}}</div>
+            <div class="qt-stat qt-working"><span class="qt-num">{{totals.working}}</span> {{#str}}working, local_qualtracker{{/str}}</div>
+        </div>
+
+        {{#programs}}
+        <details class="local-qualtracker-program card mb-2" id="program-{{id}}" {{#open}}open{{/open}}>
+            <summary class="card-header d-flex flex-wrap align-items-center">
+                <span class="qt-title mr-auto">
+                    <strong>{{fullname}}</strong> <span class="text-muted">{{shortname}}</span>
+                    <small class="d-block text-muted">{{#str}}unitcount, local_qualtracker, {{unitcount}}{{/str}}</small>
+                </span>
+                <span class="qt-counts d-flex">
+                    <span class="qt-count" title="{{#str}}enrolled, local_qualtracker{{/str}}"><span class="qt-num">{{enrolled}}</span> {{#str}}enrolled, local_qualtracker{{/str}}</span>
+                    <span class="qt-count qt-completed"><span class="qt-num">{{completed}}</span> {{#str}}completed, local_qualtracker{{/str}}</span>
+                    <span class="qt-count qt-working"><span class="qt-num">{{working}}</span> {{#str}}working, local_qualtracker{{/str}}</span>
+                </span>
+                <span class="qt-bar w-100 mt-2" aria-hidden="true"><span style="width: {{completedpercent}}%"></span></span>
+            </summary>
+            <div class="card-body">
+                <p class="small">
+                    <a href="{{url}}">{{#str}}viewcourse, local_qualtracker{{/str}}</a> ·
+                    <a href="{{participantsurl}}">{{#str}}participants{{/str}}</a> ·
+                    {{#str}}breakdown, local_qualtracker, { "inprogress": {{inprogress}}, "notstarted": {{notstarted}} }{{/str}}
+                </p>
+                {{^hasstudents}}
+                    <p>{{#str}}nostudents, local_qualtracker{{/str}}</p>
+                {{/hasstudents}}
+                {{#hasstudents}}
+                    {{^hasunits}}<p class="alert alert-info">{{#str}}nounits, local_qualtracker{{/str}}</p>{{/hasunits}}
+                    <form class="local-qualtracker-filter form-inline mb-2" data-table="qt-table-{{id}}">
+                        <label class="sr-only" for="qt-q-{{id}}">{{#str}}search{{/str}}</label>
+                        <input type="search" class="form-control form-control-sm mr-2 mb-1" id="qt-q-{{id}}" name="q" placeholder="{{#str}}searchstudents, local_qualtracker{{/str}}">
+                        <label class="sr-only" for="qt-s-{{id}}">{{#str}}status{{/str}}</label>
+                        <select class="custom-select custom-select-sm mb-1" id="qt-s-{{id}}" name="status">
+                            <option value="">{{#str}}allstatuses, local_qualtracker{{/str}}</option>
+                            <option value="completed">{{#str}}status_completed, local_qualtracker{{/str}}</option>
+                            <option value="inprogress">{{#str}}status_inprogress, local_qualtracker{{/str}}</option>
+                            <option value="notstarted">{{#str}}status_notstarted, local_qualtracker{{/str}}</option>
+                        </select>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered local-qualtracker-grid" id="qt-table-{{id}}">
+                            <thead>
+                                <tr>
+                                    <th scope="col">{{#str}}student, local_qualtracker{{/str}}</th>
+                                    <th scope="col">{{#str}}status{{/str}}</th>
+                                    <th scope="col">{{#str}}progress, local_qualtracker{{/str}}</th>
+                                    {{#units}}
+                                        <th scope="col" class="qt-unit"><a href="{{reporturl}}" title="{{fullname}}">{{shortname}}</a></th>
+                                    {{/units}}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{#students}}
+                                <tr data-status="{{status}}" data-name="{{searchkey}}">
+                                    <th scope="row"><a href="{{profileurl}}">{{fullname}}</a></th>
+                                    <td><span class="badge {{statusclass}}">{{statuslabel}}</span></td>
+                                    <td class="qt-progress">
+                                        <div class="progress" title="{{percent}}%"><div class="progress-bar" role="progressbar" style="width: {{percent}}%" aria-valuenow="{{percent}}" aria-valuemin="0" aria-valuemax="100"></div></div>
+                                        <small>{{#str}}unitsdone, local_qualtracker, { "done": {{unitscomplete}}, "total": {{unitstotal}} }{{/str}}</small>
+                                    </td>
+                                    {{#cells}}
+                                        <td class="qt-cell qt-{{status}}" title="{{title}}"><span aria-hidden="true">{{text}}</span><span class="sr-only">{{title}}</span></td>
+                                    {{/cells}}
+                                </tr>
+                                {{/students}}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="small qt-legend">
+                        <span class="qt-cell qt-complete">✓</span> {{#str}}unit_complete, local_qualtracker{{/str}}
+                        <span class="qt-cell qt-inprogress">%</span> {{#str}}unit_inprogress, local_qualtracker{{/str}}
+                        <span class="qt-cell qt-notstarted">0%</span> {{#str}}unit_notstarted, local_qualtracker{{/str}}
+                        <span class="qt-cell qt-notenrolled"></span> {{#str}}unit_notenrolled, local_qualtracker{{/str}}
+                    </p>
+                {{/hasstudents}}
+            </div>
+        </details>
+        {{/programs}}
+    {{/hasprograms}}
+</div>
